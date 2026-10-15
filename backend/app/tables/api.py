@@ -189,11 +189,9 @@ def timeline(day: date, db: Session = Depends(get_db), _: StaffUser = Depends(re
     """Everything holding each table on `day` (local): reservations and blocks."""
     r = get_restaurant(db)
     start, end = day_bounds(r, day)
-    end += timedelta(hours=6)  # sittings that run past midnight
+    end += timedelta(hours=6)
     window = TableAllocation.active, TableAllocation.period.overlaps(Range(start, end, bounds="[)"))
     items: dict[int, list] = {}
-    # Two inner joins rather than one outer join: Reservation.customer is eager-loaded with an inner
-    # join, which would silently drop block rows from an outer-joined query.
     for a, res in db.execute(select(TableAllocation, Reservation).join(Reservation, TableAllocation.reservation_id == Reservation.id).where(*window)):
         items.setdefault(a.table_id, []).append({
             "from": a.period.lower, "to": a.period.upper, "type": "reservation", "ref": res.ref, "status": res.status,

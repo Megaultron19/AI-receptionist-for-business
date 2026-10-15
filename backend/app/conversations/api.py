@@ -74,7 +74,7 @@ def reply(cid: int, body: ReplyIn, db: Session = Depends(get_db), user: StaffUse
     except wa.WhatsAppError as e:
         raise DomainError(f"WhatsApp didn't accept the message: {e}", "provider_error", 502)
     if c.mode == "ai":
-        service.handoff(db, c, "staff replied", actor=actor(user))  # staff took over; AI stays quiet until released
+        service.handoff(db, c, "staff replied", actor=actor(user))
     c.assigned_to, c.last_message_at = user.id, utcnow()
     db.add(Message(conversation_id=c.id, customer_id=c.customer_id, direction="out", sender="staff", body=body.body,
                    wa_message_id=mid, status="sent", staff_id=user.id))

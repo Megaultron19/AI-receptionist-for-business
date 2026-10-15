@@ -208,7 +208,7 @@ def confirm(db: Session, o: Order, *, actor: Actor, scheduled_for: datetime | No
     r = get_restaurant(db)
     if not o.items:
         raise DomainError("The order is empty.")
-    for l in o.items:  # dishes may have gone out of stock while the customer was deciding
+    for l in o.items:
         _resolve(db, l.menu_item_id, l.variant_id, [a["id"] for a in l.addons])
     recalculate(db, o, r)
     quote = kitchen_quote(db, o)
@@ -247,7 +247,6 @@ def transition(db: Session, o: Order, new: str, *, actor: Actor, reason: str = "
             raise DomainError("Give a preparation time in minutes.")
         o.accepted_at = now
         earliest = now + timedelta(minutes=minutes)
-        # A scheduled pickup later than the kitchen needs stays at the scheduled time.
         o.estimated_ready_at = max(earliest, o.scheduled_for) if o.scheduled_for else earliest
     o.status = new
     if new == "submitted":
@@ -288,7 +287,7 @@ def reopen_for_edit(db: Session, o: Order, *, actor: Actor) -> Order:
 
 
 def _next_invoice(db: Session) -> str:
-    r = get_restaurant(db, for_update=True)  # row lock serialises invoice numbering
+    r = get_restaurant(db, for_update=True)
     n = r.next_invoice_number
     r.next_invoice_number = n + 1
     fy = _financial_year(utcnow().astimezone(tz(r)))
@@ -296,7 +295,7 @@ def _next_invoice(db: Session) -> str:
 
 
 def _financial_year(d: datetime) -> str:
-    start = d.year if d.month >= 4 else d.year - 1  # Indian FY: April-March
+    start = d.year if d.month >= 4 else d.year - 1
     return f"{start % 100:02d}-{(start + 1) % 100:02d}"
 
 

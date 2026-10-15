@@ -10,8 +10,8 @@ from fastapi.responses import JSONResponse
 from sqlalchemy import select, text
 from sqlalchemy.orm import Session
 
-from . import models  # noqa: F401  (registers all tables)
-from . import registry  # noqa: F401  (registers job handlers)
+from . import models  # noqa: F401
+from . import registry  # noqa: F401
 from .auth.api import router as auth_router
 from .config import get_settings
 from .core import ratelimit
@@ -129,5 +129,4 @@ def readyz(db: Session = Depends(get_db)):
 
 if settings.dashboard_dir:
     from fastapi.staticfiles import StaticFiles
-    # Registered last so API, webhook and QR routes take precedence. Production uses Caddy instead.
     app.mount("/", StaticFiles(directory=settings.dashboard_dir, html=True), name="dashboard")

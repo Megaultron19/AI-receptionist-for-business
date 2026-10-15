@@ -55,8 +55,6 @@ def incoming(db: Session, provider: Provider, ev: CallEvent) -> str:
         try:
             customer = get_or_create(db, ev.from_number)
         except DomainError:
-            # Withheld/invalid caller ID: a private placeholder per call, so anonymous callers never
-            # share (or see) each other's bookings. Messages to it fail and staff are alerted instead.
             customer = Customer(phone=f"anon-{secrets.token_hex(6)}", name="", whatsapp_unavailable=True)
             db.add(customer)
             db.flush()

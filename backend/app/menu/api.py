@@ -132,7 +132,6 @@ def _apply(it: MenuItem, body: ItemIn) -> None:
     data["aliases"] = [a.strip() for a in data["aliases"] if a.strip()]
     for k, v in data.items():
         setattr(it, k, v)
-    # Replace variants/add-ons wholesale; order lines keep their own name/price snapshots.
     it.variants = [ItemVariant(sort=i, **v.model_dump()) for i, v in enumerate(body.variants)]
     it.addon_groups = [AddonGroup(sort=i, name=g.name, min_select=g.min_select, max_select=g.max_select,
                                   addons=[Addon(sort=j, **a.model_dump()) for j, a in enumerate(g.addons)])
@@ -197,7 +196,7 @@ def delete_item(item_id: int, db: Session = Depends(get_db), user: StaffUser = D
     it = db.get(MenuItem, item_id)
     if not it or not it.active:
         raise NotFound("Menu item")
-    it.active = False  # soft delete: past orders still reference it
+    it.active = False
     audit(db, "menu.item_deleted", "menu_item", it.id, actor=actor(user), name=it.name)
     db.commit()
     return {"ok": True}

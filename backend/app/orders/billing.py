@@ -16,7 +16,7 @@ class Line:
     quantity: int
     unit_price_paise: int
     tax_rate_bp: int
-    detail: str = ""  # variant / add-ons, for display
+    detail: str = ""
 
     @property
     def total(self) -> int:
@@ -30,7 +30,7 @@ class Bill:
     discount: int
     discount_name: str
     charges: list[dict[str, Any]]
-    taxes: list[dict[str, Any]]  # per rate: taxable, cgst, sgst
+    taxes: list[dict[str, Any]]
     tax_total: int
     total: int
     prices_include_tax: bool
@@ -79,7 +79,6 @@ def compute_bill(lines: list[Line], *, order_type: str, default_tax_bp: int, pri
     taxes, tax_total = [], 0
     for rate, base in sorted(by_rate.items()):
         if prices_include_tax:
-            # Menu prices already include GST: back it out of the line value.
             tax = base - int((Decimal(base) * 10000 / (10000 + rate)).quantize(Decimal(1), rounding=ROUND_HALF_UP))
             taxable = base - tax
         else:
@@ -87,7 +86,7 @@ def compute_bill(lines: list[Line], *, order_type: str, default_tax_bp: int, pri
         taxes.append({"rate_bp": rate, "taxable": taxable, "cgst": tax // 2, "sgst": tax - tax // 2, "tax": tax})
         tax_total += tax
     if taxable_charges and default_tax_bp:
-        tax = pct(taxable_charges, default_tax_bp)  # charges are always priced exclusive of tax
+        tax = pct(taxable_charges, default_tax_bp)
         taxes.append({"rate_bp": default_tax_bp, "taxable": taxable_charges, "cgst": tax // 2, "sgst": tax - tax // 2,
                       "tax": tax, "on": "charges"})
         tax_total += tax

@@ -35,7 +35,7 @@ from .models import Payment, Refund
 
 log = logging.getLogger(__name__)
 ORDER_LINK_TTL = timedelta(minutes=30)
-MIN_LINK_TTL = timedelta(minutes=16)  # Razorpay requires expire_by at least 15 minutes ahead
+MIN_LINK_TTL = timedelta(minutes=16)
 OPEN = ("creating", "created", "pending")
 SETTLED = ("paid", "refunded", "partially_refunded")
 
@@ -46,7 +46,7 @@ def _ts(dt: datetime) -> int:
 
 def _ensure_link(db: Session, p: Payment, *, description: str, customer) -> Payment:
     """Create the Razorpay link for a 'creating' payment, or adopt one a previous attempt already made."""
-    db.commit()  # the payment row (and its reference) must exist before we talk to Razorpay
+    db.commit()
     link = razorpay.find_payment_link(p.ref)
     if not link:
         link = razorpay.create_payment_link(amount_paise=p.amount_paise, reference_id=p.ref, description=description,
@@ -63,7 +63,7 @@ def _ensure_link(db: Session, p: Payment, *, description: str, customer) -> Paym
 def create_order_link(db: Session, order_id: int) -> Payment | None:
     o = db.get(Order, order_id, with_for_update=True)
     if not o or o.status != "awaiting_payment" or o.amount_due_paise <= 0:
-        return None  # stale job: order was edited, cancelled or already paid
+        return None
     p = db.scalar(select(Payment).where(Payment.order_id == o.id, Payment.status.in_(OPEN),
                                         Payment.amount_paise == o.amount_due_paise))
     if p and p.status != "creating":
@@ -89,7 +89,7 @@ def create_deposit_link(db: Session, reservation_id: int) -> Payment | None:
         return p
     if not p:
         expires = max(res.hold_expires_at, utcnow() + MIN_LINK_TTL)
-        if expires > res.hold_expires_at:  # keep the table held for as long as the link is payable
+        if expires > res.hold_expires_at:
             res.hold_expires_at = expires
             enqueue(db, "reservation.hold_expire", {"id": res.id}, run_at=expires, dedupe_key=f"hold:res:{res.id}:{_ts(expires)}")
         p = Payment(ref=new_ref("P") + "D", purpose="deposit", reservation_id=res.id, amount_paise=res.deposit_paise,
@@ -125,7 +125,7 @@ def sync_link(db: Session, p: Payment) -> Payment:
 
 def mark_paid(db: Session, p: Payment, provider_payment_id: str | None) -> None:
     if p.status in SETTLED:
-        return  # idempotent: duplicate or late events change nothing
+        return
     p.status, p.paid_at = "paid", utcnow()
     p.provider_payment_id = provider_payment_id or p.provider_payment_id
     audit(db, "payment.paid", "payment", p.ref, actor=("provider", "razorpay"), amount=p.amount_paise,
@@ -139,7 +139,6 @@ def mark_paid(db: Session, p: Payment, provider_payment_id: str | None) -> None:
             orders.transition(db, o, "paid", actor=("provider", "razorpay"))
             orders.transition(db, o, "submitted", actor=("system", None))
         else:
-            # Paid an old link after the order was edited or cancelled: give the money back.
             alert(db, "late_payment", f"Payment {p.ref} arrived for order {o.ref} which is {o.status}; refunding it.",
                   severity="warning", ref=("order", o.ref))
             initiate_refund(db, p, p.amount_paise, "payment for an outdated order", ("system", None))
@@ -189,7 +188,7 @@ def cancel_open_links(db: Session, order_id: int) -> None:
             try:
                 razorpay.cancel_payment_link(p.provider_link_id)
             except razorpay.RazorpayError:
-                sync_link(db, p)  # maybe it was paid in the meantime
+                sync_link(db, p)
                 if p.status in SETTLED:
                     continue
                 raise
@@ -197,7 +196,6 @@ def cancel_open_links(db: Session, order_id: int) -> None:
         audit(db, "payment.cancelled", "payment", p.ref)
 
 
-# ---------- Refunds ----------
 
 def refundable(p: Payment) -> int:
     pending = sum(r.amount_paise for r in p.refunds if r.status in ("requested", "pending"))
@@ -260,7 +258,6 @@ def refund_order(db: Session, order_id: int, reason: str) -> None:
             initiate_refund(db, p, amount, reason, ("system", None))
 
 
-# ---------- Webhooks ----------
 
 def store_webhook(db: Session, raw: bytes, event_id: str | None) -> bool:
     """Persist a verified webhook and queue its processing. Returns False for duplicates."""

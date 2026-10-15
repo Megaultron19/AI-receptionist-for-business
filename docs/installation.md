@@ -29,7 +29,7 @@ cp .env.example .env && chmod 600 .env
 ## 3. Fill in `.env`
 
 Required: `DOMAIN`, `COMPOSE_PROJECT_NAME`, `SECRET_KEY` (48+ random chars), `PUBLIC_BASE_URL`
-(`https://<DOMAIN>`), `POSTGRES_PASSWORD`, `ANTHROPIC_API_KEY`. Provider keys can be added later — the app
+(`https://<DOMAIN>`), `POSTGRES_PASSWORD`, `ANTHROPIC_API_KEY`. Provider keys can be added later - the app
 runs without them and the **Usage & health** page shows what is missing. Start with **Razorpay test keys**.
 
 ## 4. Start

@@ -11,7 +11,7 @@ type Row = { id: number; code: string; name: string; area: string; capacity: num
 type Table = { id: number; code: string; name: string; area: string; capacity: number; min_capacity: number; active: boolean; sort: number };
 type Combo = { id: number; name: string; capacity: number; min_capacity: number; active: boolean; table_ids: number[]; tables: string[] };
 
-const START_H = 10, END_H = 26; // 10:00 to 02:00 next day
+const START_H = 10, END_H = 26;
 
 export default function TablesPage() {
   const { tz, can } = useApp();

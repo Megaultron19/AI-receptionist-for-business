@@ -39,7 +39,7 @@ export default function UsagePage() {
       )}
       {usage.data && (
         <section className="card">
-          <h2 className="mb-2 font-semibold">Usage — last {usage.data.days} days</h2>
+          <h2 className="mb-2 font-semibold">Usage - last {usage.data.days} days</h2>
           <table className="table"><thead><tr><th>Metric</th><th className="text-right">Quantity</th><th className="text-right">Estimated cost</th></tr></thead>
             <tbody>{Object.entries<any>(usage.data.totals).sort().map(([k, t]) => (
               <tr key={k}><td>{NAMES[k] ?? k}</td><td className="text-right">{t.quantity.toLocaleString("en-IN")}</td><td className="text-right">{t.cost_paise ? rupees(t.cost_paise) : "–"}</td></tr>))}</tbody>

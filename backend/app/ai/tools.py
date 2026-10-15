@@ -31,8 +31,8 @@ class ToolContext:
     db: Session
     customer: Customer
     convo: Conversation
-    channel: str  # voice | whatsapp
-    flags: dict[str, Any] = field(default_factory=dict)  # transfer / end_call / outcome for the channel layer
+    channel: str
+    flags: dict[str, Any] = field(default_factory=dict)
 
     @property
     def actor(self):
@@ -74,7 +74,6 @@ def run(ctx: ToolContext, name: str, args: dict) -> tuple[str, bool]:
         return json.dumps({"error": msg}, ensure_ascii=False), True
 
 
-# ---------- helpers ----------
 
 def _local(ctx: ToolContext, d: str, t: str) -> datetime:
     return datetime.combine(date.fromisoformat(d), time.fromisoformat(t), tz(get_restaurant(ctx.db)))
@@ -134,7 +133,6 @@ def _set_outcome(ctx: ToolContext, outcome: str) -> None:
         ctx.flags["outcome"] = outcome
 
 
-# ---------- reservations ----------
 
 @tool("check_availability", "Check real table availability. Give `time` to check one time (returns alternatives if it's "
       "taken) or null to list all free times that day.", {"date": DATE, "time": {**NS, "description": "HH:MM or null"}, "party_size": I})
@@ -222,7 +220,6 @@ def join_waitlist(ctx: ToolContext, a: dict) -> dict:
     return {"waitlisted": True, "id": e.id, "note": "We'll message on WhatsApp if a table frees up; they must confirm quickly."}
 
 
-# ---------- menu & orders ----------
 
 @tool("get_menu", "Current menu with prices and availability. Use `category` to narrow, or null for everything.",
       {"category": NS})
@@ -377,7 +374,6 @@ def get_order_status(ctx: ToolContext, a: dict) -> dict:
     return out
 
 
-# ---------- consent, handoff ----------
 
 @tool("record_whatsapp_consent", "Record whether the customer agreed to receive booking/order messages (confirmations, "
       "reminders, payment links) on WhatsApp at this number.", {"agreed": {"type": "boolean"}})

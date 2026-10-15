@@ -28,7 +28,7 @@ def test_flow1_whatsapp_reservation_to_qr_checkin(db, owner, restaurant, wa, llm
               lambda res: f"Done! Your table is booked, reference {json.loads(res[0][1])['ref']}.")
     public = TestClient(app)
     assert wa_inbound(public, "Hi, table for 2 tomorrow at 8pm please, name Asha", "wamid.in1").json()["queued"] == 1
-    assert wa_inbound(public, "Hi, table for 2 tomorrow at 8pm please, name Asha", "wamid.in1").json()["queued"] == 0  # Meta retry
+    assert wa_inbound(public, "Hi, table for 2 tomorrow at 8pm please, name Asha", "wamid.in1").json()["queued"] == 0
     drain()
     assert results(bot, 0)[0]["available"] is True
     created = results(bot, 1)[0]
@@ -57,14 +57,14 @@ def test_flow2_voice_preorder_edit_pay_accept_pickup(db, owner, menu, wa, rzp, l
               lambda res: "Do you mean Paneer Tikka or Paneer Butter Masala?")
     r = plivo_post(public, "/voice/plivo/turn?n=0", call | {"Speech": "I want to order two paneer"})
     assert "Paneer Tikka or Paneer Butter Masala" in r.text
-    assert "could be" in json.loads(bot.tool_results[0][1][1])["error"]  # ambiguity reported, not guessed
+    assert "could be" in json.loads(bot.tool_results[0][1][1])["error"]
 
     bot = llm([("add_to_order", {"dish": "paneer tikka", "quantity": 2, "option": None, "addons": [], "instructions": "extra spicy"})],
               [("add_to_order", {"dish": "chai", "quantity": 1, "option": None, "addons": ["less sugar", "extra ginger"], "instructions": None})],
               lambda res: "Two paneer tikka and one masala chai. Anything else?")
     plivo_post(public, "/voice/plivo/turn?n=0", call | {"Speech": "paneer tikka, extra spicy, and a chai less sugar with ginger"})
     order = results(bot, 1)[0]
-    assert order["subtotal"] == "₹630" and order["total"] == "₹661.50"  # 2x280 + 70, plus 5% GST — computed by the backend
+    assert order["subtotal"] == "₹630" and order["total"] == "₹661.50"
 
     line = next(l for l in order["lines"] if l["dish"] == "Paneer Tikka")["line_id"]
     bot = llm([("change_order_line", {"line_id": line, "quantity": 3, "option": None, "addons": None, "instructions": None}), ("view_order", {})],
@@ -78,15 +78,15 @@ def test_flow2_voice_preorder_edit_pay_accept_pickup(db, owner, menu, wa, rzp, l
 
     o = db.scalar(select(Order))
     assert o.total_paise == 95550 and o.amount_due_paise == 95550
-    drain()  # payment link job; customer isn't in the WhatsApp window but agreed on the call
+    drain()
     p = db.scalar(select(Payment).where(Payment.order_id == o.id))
-    assert p.amount_paise == 95550 and rzp.last_create["sms"] is True  # no approved template configured -> Razorpay SMS fallback
+    assert p.amount_paise == 95550 and rzp.last_create["sms"] is True
     rzp.pay(p.provider_link_id)
     razorpay_webhook(public, "payment_link.paid", {"payment_link": {"entity": {"id": p.provider_link_id}}}, "evt-pay")
     drain()
     db.expire_all()
     o = db.get(Order, o.id)
-    assert o.status == "submitted" and o.amount_paid_paise == 95550   # paid, then waiting for the restaurant
+    assert o.status == "submitted" and o.amount_paid_paise == 95550
     assert owner.post(f"/api/orders/{o.ref}/status", json={"status": "accepted", "eta_minutes": 5}).json()["status"] == "accepted"
     owner.post(f"/api/orders/{o.ref}/status", json={"status": "preparing"})
     owner.post(f"/api/orders/{o.ref}/status", json={"status": "ready"})
@@ -134,4 +134,4 @@ def test_flow3_cancellation_releases_table_to_waitlist(db, owner, restaurant, wa
     drain()
     db.expire_all()
     assert db.get(Reservation, held.id).status == "confirmed" and db.get(WaitlistEntry, entry.id).status == "booked"
-    assert any(s[0] == "image" and held.ref in s[2] for s in wa.sent)  # QR confirmation for the promoted guest
+    assert any(s[0] == "image" and held.ref in s[2] for s in wa.sent)

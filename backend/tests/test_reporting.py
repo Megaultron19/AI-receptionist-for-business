@@ -42,14 +42,14 @@ def test_usage_health_reports_audit_and_privacy(db, owner, restaurant, wa):
     assert owner.get("/api/overview").json()["alerts_open"] >= 0
     exp = owner.get(f"/api/customers/{c.id}/export").json()
     assert exp["customer"]["phone"] == "+919876500001" and exp["reservations"][0]["ref"] == res.ref
-    assert owner.post(f"/api/customers/{c.id}/anonymize").status_code == 400  # upcoming booking must be cancelled first
+    assert owner.post(f"/api/customers/{c.id}/anonymize").status_code == 400
     engine.transition(db, res, "cancelled", actor=("system", None))
     db.commit()
     assert owner.post(f"/api/customers/{c.id}/anonymize").status_code == 200
     db.refresh(c)
     assert c.name == "" and not c.phone.startswith("+91") and c.anonymized_at
     manager = make_client(db, "manager")
-    assert manager.get(f"/api/customers/{c.id}/export").status_code == 403  # owner only
+    assert manager.get(f"/api/customers/{c.id}/export").status_code == 403
 
 
 def test_retention_purge(db, restaurant):
@@ -72,4 +72,4 @@ def test_retention_purge(db, restaurant):
     db.commit()
     db.refresh(convo), db.refresh(fresh)
     assert convo.transcript == [] and fresh.transcript != []
-    assert purge_old_data(db) == {"transcripts": 0, "messages": 0, "webhook_payloads": 0, "jobs": 0}  # idempotent
+    assert purge_old_data(db) == {"transcripts": 0, "messages": 0, "webhook_payloads": 0, "jobs": 0}

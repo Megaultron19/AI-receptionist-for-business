@@ -21,12 +21,12 @@ describe("money", () => {
 describe("time in the restaurant's timezone", () => {
   it("places times on the day timeline, including after midnight", () => {
     expect(hoursInDay("2026-10-20T13:30:00Z", "2026-10-20", "Asia/Kolkata")).toBe(19);
-    expect(hoursInDay("2026-10-20T20:00:00Z", "2026-10-20", "Asia/Kolkata")).toBe(25.5); // 01:30 next day
+    expect(hoursInDay("2026-10-20T20:00:00Z", "2026-10-20", "Asia/Kolkata")).toBe(25.5);
     expect(hhmm("2026-10-20T13:30:00Z", "Asia/Kolkata")).toBe("19:00");
   });
   it("computes today's date in the restaurant timezone", () => {
     vi.useFakeTimers();
-    vi.setSystemTime(new Date("2026-10-20T20:00:00Z")); // 01:30 IST on the 21st
+    vi.setSystemTime(new Date("2026-10-20T20:00:00Z"));
     expect(todayIn("Asia/Kolkata")).toBe("2026-10-21");
     expect(todayIn("UTC")).toBe("2026-10-20");
     vi.useRealTimers();

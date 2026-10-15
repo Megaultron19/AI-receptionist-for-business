@@ -24,7 +24,7 @@ from ..restaurant.service import duration_for, get_restaurant, is_open_between, 
 from ..tables.models import DiningTable, TableAllocation, TableCombination
 from .models import ACTIVE_STATUSES, Reservation, WaitlistEntry
 
-REF_ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"  # no 0/O/1/I/L: readable over the phone
+REF_ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"
 EXCLUSION_VIOLATION = "23P01"
 
 TRANSITIONS: dict[str, set[str]] = {
@@ -32,7 +32,7 @@ TRANSITIONS: dict[str, set[str]] = {
     "confirmed": {"arrived", "seated", "cancelled", "no_show"},
     "arrived": {"seated", "completed", "no_show"},
     "seated": {"completed"},
-    "no_show": {"arrived"},  # guest turned up late after all
+    "no_show": {"arrived"},
     "completed": set(),
     "cancelled": set(),
 }
@@ -134,7 +134,7 @@ def suggest_alternatives(db: Session, party: int, wanted: datetime, *, limit: in
     same_day = sorted(available_times(db, party, day, staff=staff), key=lambda t: abs(t - wanted))[:limit]
     if same_day:
         return sorted(same_day)
-    for delta in (1, 2, 3):  # same time on the following days
+    for delta in (1, 2, 3):
         times = available_times(db, party, day + timedelta(days=delta), staff=staff)
         target = wanted + timedelta(days=delta)
         if times:
@@ -167,7 +167,6 @@ def _allocate(db: Session, res: Reservation, opts: list[Option], start: datetime
         except IntegrityError as e:
             if getattr(e.orig, "sqlstate", None) != EXCLUSION_VIOLATION:
                 raise
-            # Someone else took this table between our check and insert; try the next candidate.
     return None
 
 
@@ -239,7 +238,6 @@ def transition(db: Session, res: Reservation, new: str, *, actor: Actor, reason:
     if new in RELEASING:
         _release(db, res)
     elif old == "no_show" and new == "arrived":
-        # Re-take the tables only if they are still free; otherwise staff seat the guest manually.
         _reallocate_same(db, res)
     audit(db, f"reservation.{new}", "reservation", res.ref, actor=actor, previous=old, reason=reason or None)
     _after_status_change(db, get_restaurant(db), res, old)
@@ -271,13 +269,12 @@ def reschedule(db: Session, res: Reservation, *, start: datetime, party: int, ac
     old = (res.starts_at.isoformat(), res.party_size, sorted(a.table_id for a in res.allocations))
     with db.begin_nested():
         for a in res.allocations:
-            db.delete(a)  # frees the current tables inside the savepoint so the booking can keep them
+            db.delete(a)
         db.flush()
         res.starts_at, res.ends_at, res.party_size = start, end, party
         if not _allocate(db, res, opts, start, until):
             raise Conflict("No table is free for the new time.")
     db.refresh(res)
-    # ponytail: a confirmed booking that grows past the deposit threshold isn't asked for a new deposit.
     audit(db, "reservation.rescheduled", "reservation", res.ref, actor=actor, previous=old,
           start=start.isoformat(), party=party, tables=[a.table_id for a in res.allocations])
     cancel_jobs(db, f"reminder:res:{res.id}:")
@@ -319,12 +316,10 @@ def _after_status_change(db: Session, r: RestaurantSettings, res: Reservation, o
         if res.status == "cancelled":
             cancel_jobs(db, f"noshow:res:{res.id}:")
             enqueue(db, "notify.reservation", {"id": res.id, "event": "cancelled"}, dedupe_key=f"notify:res:{res.id}:cancelled")
-        # Freed tables may fit someone on the waitlist.
         day = res.starts_at.astimezone(tz(r)).date().isoformat()
         enqueue(db, "waitlist.process", {"day": day}, dedupe_key=f"waitlist:{day}:{res.id}:{res.status}")
 
 
-# ---------- Holds, waitlist ----------
 
 def confirm_hold(db: Session, res: Reservation, *, actor: Actor) -> Reservation:
     """Customer accepted a waitlist offer, or staff confirm a held booking."""
@@ -336,7 +331,6 @@ def confirm_hold(db: Session, res: Reservation, *, actor: Actor) -> Reservation:
     if entry:
         entry.status = "booked"
     if res.hold_reason == "waitlist" and res.deposit_paise and actor[0] != "staff":
-        # Accepting a waitlist offer that needs a deposit: switch to a deposit hold.
         r = get_restaurant(db)
         res.hold_reason, res.hold_expires_at = "deposit", utcnow() + timedelta(minutes=r.hold_minutes)
         enqueue(db, "payments.reservation_deposit", {"id": res.id}, dedupe_key=f"deposit:res:{res.id}")

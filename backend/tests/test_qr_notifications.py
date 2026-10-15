@@ -39,7 +39,7 @@ def test_reservation_qr_confirmation_and_checkin(db, owner, restaurant, wa):
     kind, to, caption = wa.sent[0]
     assert kind == "image" and to == "+919876500001" and res.ref in caption and "Guests: 2" in caption
     token = token_from(caption)
-    assert db.scalar(select(QrToken)).token_hash != token  # only the hash is stored
+    assert db.scalar(select(QrToken)).token_hash != token
     staff = owner
     r = staff.post("/api/checkin/lookup", json={"code": f"https://resto.example/q/{token}"}).json()
     assert r["result"] == "valid" and r["ref"] == res.ref and r["status"] == "confirmed"
@@ -48,7 +48,6 @@ def test_reservation_qr_confirmation_and_checkin(db, owner, restaurant, wa):
     r = staff.post("/api/checkin/confirm", json={"code": token}).json()
     assert r["result"] == "already_checked_in" and r["scan_count"] == 3
     assert staff.post("/api/checkin/lookup", json={"code": "x" * 43}).json()["result"] == "invalid"
-    # Public page: booking details but no personal data
     page = TestClient(app).get(f"/q/{token}").text
     assert res.ref in page and "Asha" not in page and "98765" not in page
     assert TestClient(app).get(f"/q/{token}.png").content.startswith(b"\x89PNG")
@@ -83,7 +82,6 @@ def test_order_qr_requires_ready_and_verified_payment(db, owner, menu, wa, resta
     caption = next(s[2] for s in wa.sent if s[0] == "image")
     assert "Estimated ready" in caption and "Pay ₹294 at the counter" in caption
     token = token_from(caption)
-    # Pay-at-counter order with no minimum payment: payment is "verified" for the zero amount due
     assert owner.post("/api/checkin/confirm", json={"code": token}).json()["result"] == "not_ready"
     owner.post(f"/api/orders/{o.ref}/status", json={"status": "ready"})
     r = owner.post("/api/checkin/confirm", json={"code": token}).json()
@@ -92,14 +90,13 @@ def test_order_qr_requires_ready_and_verified_payment(db, owner, menu, wa, resta
 
 
 def test_notification_policy_window_consent_templates(db, restaurant, wa):
-    c = get_or_create(db, "9876500002", "Out Of Window")  # never messaged us, no consent
+    c = get_or_create(db, "9876500002", "Out Of Window")
     res = engine.create_reservation(db, customer=c, party=2, start=at(future_day(), "19:00"), source="voice", actor=SYS)
     db.commit()
     drain()
     n = db.scalar(select(Notification).where(Notification.kind == "booking_confirmation"))
     assert n.status == "skipped" and "consent" in n.error and wa.sent == []
     assert db.scalar(select(Alert).where(Alert.kind == "notification_skipped"))
-    # Customer agreed on the call + restaurant configured an approved template
     c.whatsapp_opt_in = True
     restaurant.whatsapp_templates = {"booking_confirmation": {"name": "booking_confirmed_v1", "language": "en"}}
     db.commit()
@@ -121,8 +118,7 @@ def test_not_on_whatsapp_and_retries_dont_double_send(db, restaurant, wa):
         db.execute(Job.__table__.update().where(Job.status == "queued", Job.kind == "notify.reservation").values(run_at=Job.created_at))
         db.commit()
         drain()
-    assert len(wa.sent) == 1  # retried once successfully, then idempotent
-    # A number that can't receive WhatsApp: marked, staff alerted to call instead
+    assert len(wa.sent) == 1
     other = get_or_create(db, "9876500003", "No WA")
     in_window(db, other)
     wa.fail_with = WhatsAppError("400 131026: undeliverable", code=131026)

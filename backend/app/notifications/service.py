@@ -56,7 +56,7 @@ def send(db: Session, customer: Customer, *, kind: str, dedupe_key: str, text: s
     else:
         why = "no WhatsApp consent" if not customer.whatsapp_opt_in else f"no approved '{kind}' template configured"
         return _skip(db, n, customer, why, text)
-    db.commit()  # persist the pending row before the external call
+    db.commit()
     try:
         if method == "session" and qr_png:
             msg_id = wa.send_image(customer.phone, wa.upload_png(qr_png), text)
@@ -66,7 +66,7 @@ def send(db: Session, customer: Customer, *, kind: str, dedupe_key: str, text: s
             msg_id = wa.send_template(customer.phone, template["name"], template.get("language", "en"), template_params)
     except wa.WhatsAppError as e:
         if e.retryable:
-            raise  # job retries with backoff; the ledger row stays pending
+            raise
         if e.code in wa.NOT_ON_WHATSAPP:
             customer.whatsapp_unavailable = True
         n.status, n.error = "failed", str(e)[:300]
@@ -76,7 +76,7 @@ def send(db: Session, customer: Customer, *, kind: str, dedupe_key: str, text: s
               "Please contact the customer another way.", severity="warning", ref=(ref[0] or "customer", ref[1] or customer.id))
         return n
     n.status, n.method, n.wa_message_id, n.sent_at = "sent", method, msg_id, utcnow()
-    db.commit()  # record the send at once: nothing after this point may cause a re-send on retry
+    db.commit()
     db.add(Message(customer_id=customer.id, direction="out", sender="system", body=text, wa_message_id=msg_id, status="sent",
                    template=template["name"] if method == "template" else "", media="image" if qr_png and method == "session" else ""))
     s = get_settings()
@@ -87,7 +87,7 @@ def send(db: Session, customer: Customer, *, kind: str, dedupe_key: str, text: s
 
 def _skip(db: Session, n: Notification, customer: Customer, why: str, text: str) -> Notification:
     n.status, n.error = "skipped", why
-    if n.kind not in ("booking_reminder",):  # a missed reminder isn't worth paging staff
+    if n.kind not in ("booking_reminder",):
         alert(db, "notification_skipped", f"{n.kind.replace('_', ' ').capitalize()} for {customer.name or customer.phone} "
               f"was not sent on WhatsApp ({why}). Message: {text[:300]}", severity="warning",
               ref=(n.ref_type or "customer", n.ref_id or customer.id))

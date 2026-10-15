@@ -11,7 +11,7 @@ def test_login_failures_and_rate_limit(db, owner):
     for _ in range(4):
         c.post("/api/auth/login", json={"email": "owner@resto.example", "password": "nope"})
     r = c.post("/api/auth/login", json={"email": "owner@resto.example", "password": "correct-horse-battery"})
-    assert r.status_code == 429  # 5 attempts per email per 5 minutes
+    assert r.status_code == 429
 
 
 def test_requires_login_and_csrf(db, owner, restaurant):

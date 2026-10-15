@@ -52,18 +52,18 @@ class MenuItem(Base):
     category_id: Mapped[int] = mapped_column(ForeignKey("menu_categories.id"), index=True)
     name: Mapped[str] = mapped_column(String(120))
     name_hi: Mapped[str] = mapped_column(String(120), default="")
-    aliases: Mapped[list[str]] = mapped_column(JSON, default=list)  # other spellings / what customers call it
+    aliases: Mapped[list[str]] = mapped_column(JSON, default=list)
     description: Mapped[str] = mapped_column(Text, default="")
-    price_paise: Mapped[int] = mapped_column(Integer, default=0)  # used when the item has no variants
+    price_paise: Mapped[int] = mapped_column(Integer, default=0)
     image_url: Mapped[str] = mapped_column(String(500), default="")
-    dietary: Mapped[list[str]] = mapped_column(JSON, default=list)  # veg, non_veg, egg, vegan, jain, gluten_free
-    allergens: Mapped[str] = mapped_column(String(300), default="")  # as supplied by the restaurant
+    dietary: Mapped[list[str]] = mapped_column(JSON, default=list)
+    allergens: Mapped[str] = mapped_column(String(300), default="")
     spice_level: Mapped[str] = mapped_column(String(20), default="")
-    available: Mapped[bool] = mapped_column(Boolean, default=True)  # false = out of stock today
+    available: Mapped[bool] = mapped_column(Boolean, default=True)
     prep_minutes: Mapped[int] = mapped_column(Integer, default=10)
-    tax_rate_bp: Mapped[int | None] = mapped_column(Integer)  # overrides the restaurant default
+    tax_rate_bp: Mapped[int | None] = mapped_column(Integer)
     sort: Mapped[int] = mapped_column(Integer, default=0)
-    active: Mapped[bool] = mapped_column(Boolean, default=True)  # false = removed from the menu
+    active: Mapped[bool] = mapped_column(Boolean, default=True)
 
     category: Mapped[MenuCategory] = relationship(lazy="joined")
     variants: Mapped[list[ItemVariant]] = relationship(lazy="selectin", order_by=ItemVariant.sort, cascade="all, delete-orphan")

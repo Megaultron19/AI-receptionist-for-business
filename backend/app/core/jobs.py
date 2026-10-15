@@ -25,7 +25,6 @@ log = logging.getLogger(__name__)
 
 Handler = Callable[[Session, dict[str, Any]], None]
 HANDLERS: dict[str, Handler] = {}
-# name -> (interval seconds, job kind); enqueued by the worker on a fixed cadence.
 PERIODIC: dict[str, tuple[int, str]] = {}
 
 BACKOFF_BASE_SECONDS = 15
@@ -80,7 +79,7 @@ def run_one() -> bool:
         with SessionLocal() as db:
             fn(db, payload)
             db.commit()
-    except Exception as e:  # noqa: BLE001 - every failure is recorded and retried or surfaced
+    except Exception as e:  # noqa: BLE001
         log.exception("job %s (%s) failed on attempt %s", job_id, kind, attempts)
         with SessionLocal() as db:
             job = db.get(Job, job_id)
@@ -129,8 +128,8 @@ def drain(limit: int = 1000) -> int:
     return n
 
 
-def worker_loop(poll_seconds: float = 1.0) -> None:  # pragma: no cover - long-running process
-    from .. import registry  # noqa: F401  registers all handlers
+def worker_loop(poll_seconds: float = 1.0) -> None:  # pragma: no cover
+    from .. import registry  # noqa: F401
     name = f"worker@{socket.gethostname()}"
     log.info("worker %s started with %d handlers", name, len(HANDLERS))
     last_maintenance = 0.0

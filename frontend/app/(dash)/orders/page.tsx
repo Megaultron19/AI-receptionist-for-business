@@ -52,13 +52,13 @@ export default function OrdersPage() {
             <div className="flex items-start justify-between">
               <div>
                 <button className="font-semibold text-brand underline" onClick={() => setDetail(o.ref)}>{o.ref}</button> <Badge status={o.status} />
-                <div className="text-sm">{o.customer.name || "—"} · {o.customer.phone}</div>
+                <div className="text-sm">{o.customer.name || "-"} · {o.customer.phone}</div>
                 <div className="text-xs text-stone-500">{o.order_type === "pickup" ? "Pickup" : "Dine-in"} · {o.scheduled_for ? `for ${fmtTime(o.scheduled_for, tz)}` : "ASAP"} · via {o.channel} · {fmtDateTime(o.created_at, tz)}</div>
               </div>
               <div className="text-right"><div className="font-semibold">{rupees(o.total_paise)}</div>
                 <div className="text-xs text-stone-500">paid {rupees(o.amount_paid_paise)}</div></div>
             </div>
-            <ul className="mt-2 text-sm">{o.items.map((l) => <li key={l.id}>{l.quantity} × {l.item_name}{l.variant_name && ` (${l.variant_name})`}{l.addons.length > 0 && ` + ${l.addons.map((a) => a.name).join(", ")}`}{l.instructions && <i className="text-stone-500"> — {l.instructions}</i>}</li>)}</ul>
+            <ul className="mt-2 text-sm">{o.items.map((l) => <li key={l.id}>{l.quantity} × {l.item_name}{l.variant_name && ` (${l.variant_name})`}{l.addons.length > 0 && ` + ${l.addons.map((a) => a.name).join(", ")}`}{l.instructions && <i className="text-stone-500"> - {l.instructions}</i>}</li>)}</ul>
             {o.estimated_ready_at && <div className="mt-1 text-xs text-sky-700">Ready by {fmtTime(o.estimated_ready_at, tz)}</div>}
             {o.cancel_reason && <div className="mt-1 text-xs text-red-700">{o.cancel_reason}</div>}
             <div className="mt-3 flex flex-wrap gap-1">
@@ -113,11 +113,11 @@ function Invoice({ inv, tz }: { inv: any; tz: string }) {
     <div className="rounded border border-stone-300 p-4 text-sm print:border-0" id="invoice">
       <div className="flex justify-between">
         <div><b>{inv.seller.name}</b>{inv.seller.trade_name !== inv.seller.name && <div>{inv.seller.trade_name}</div>}<div>{inv.seller.address}, {inv.seller.city} {inv.seller.pincode}</div>
-          <div>GSTIN: {inv.seller.gstin || "—"} · State code {inv.seller.state_code || "—"}</div>{inv.seller.fssai && <div>FSSAI: {inv.seller.fssai}</div>}</div>
+          <div>GSTIN: {inv.seller.gstin || "-"} · State code {inv.seller.state_code || "-"}</div>{inv.seller.fssai && <div>FSSAI: {inv.seller.fssai}</div>}</div>
         <div className="text-right"><b>Tax invoice</b><div>{inv.invoice_number}</div><div>{fmtDateTime(inv.date, tz)}</div><div>Order {inv.order_ref}</div></div>
       </div>
       <div className="mt-2">Bill to: {inv.buyer.name || "Customer"} · {inv.buyer.phone}{inv.buyer.gstin && ` · GSTIN ${inv.buyer.gstin}`}</div>
-      <div className="text-xs text-stone-500">Place of supply: {inv.place_of_supply || "—"} · SAC {inv.sac}</div>
+      <div className="text-xs text-stone-500">Place of supply: {inv.place_of_supply || "-"} · SAC {inv.sac}</div>
       <BillView bill={inv.bill} />
       <div className="mt-1">Paid: {rupees(inv.amount_paid_paise)}</div>
       <button className="btn-ghost mt-2 print:hidden" onClick={() => window.print()}>Print</button>
@@ -179,7 +179,7 @@ function OrderBuilder({ orderRef, onClose }: { orderRef: string; onClose: () => 
       <div className="grid gap-2 md:grid-cols-2">
         <Field label="Dish"><select className="input" value={itemId} onChange={(e) => { setItemId(Number(e.target.value)); setVariant(null); setAddons([]); }}>
           <option value="">Choose…</option>
-          {menu.data?.items.map((i) => <option key={i.id} value={i.id} disabled={!i.available}>{i.category}: {i.name}{!i.available ? " (out of stock)" : i.variants.length ? "" : ` — ${rupees(i.price_paise)}`}</option>)}
+          {menu.data?.items.map((i) => <option key={i.id} value={i.id} disabled={!i.available}>{i.category}: {i.name}{!i.available ? " (out of stock)" : i.variants.length ? "" : ` - ${rupees(i.price_paise)}`}</option>)}
         </select></Field>
         <Field label="Quantity"><input className="input" type="number" min={1} max={50} value={qty} onChange={(e) => setQty(Number(e.target.value))} /></Field>
       </div>

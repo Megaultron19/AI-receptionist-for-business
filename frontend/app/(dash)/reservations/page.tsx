@@ -67,11 +67,11 @@ export default function ReservationsPage() {
             {list.data?.map((r) => (
               <tr key={r.ref}>
                 <td className="whitespace-nowrap">{fmtTime(r.starts_at, tz)}<div className="text-xs text-stone-500">{r.ref}</div></td>
-                <td>{r.customer.name || "—"}<div className="text-xs text-stone-500">{r.customer.phone}</div>
+                <td>{r.customer.name || "-"}<div className="text-xs text-stone-500">{r.customer.phone}</div>
                   {r.notes && <div className="text-xs text-stone-600">“{r.notes}”</div>}
                   {r.staff_notes && <div className="text-xs text-indigo-700">Staff: {r.staff_notes}</div>}</td>
                 <td>{r.party_size}</td>
-                <td>{r.table_ids.map((t) => codes[t]).join(" + ") || "—"}</td>
+                <td>{r.table_ids.map((t) => codes[t]).join(" + ") || "-"}</td>
                 <td><Badge status={r.status} />
                   {r.status === "held" && <div className="text-xs text-amber-700">{r.hold_reason === "deposit" ? `deposit ${rupees(r.deposit_paise)}` : "waitlist offer"} · until {fmtTime(r.hold_expires_at, tz)}</div>}</td>
                 <td className="text-xs">{r.source}</td>
@@ -99,7 +99,7 @@ export default function ReservationsPage() {
           <tbody>
             {waitlist.data?.map((w) => (
               <tr key={w.id}>
-                <td>{w.customer.name || "—"}<div className="text-xs text-stone-500">{w.customer.phone}</div></td>
+                <td>{w.customer.name || "-"}<div className="text-xs text-stone-500">{w.customer.phone}</div></td>
                 <td>{w.party_size}</td>
                 <td>{fmtTime(w.earliest, tz)} – {fmtTime(w.latest, tz)}</td>
                 <td><Badge status={w.status} /></td>
@@ -167,7 +167,7 @@ function ReservationForm({ existing, day, tables, onClose, onSaved }: { existing
         </div>
         <input className="input mt-2 w-32" type="time" value={time} onChange={(e) => setTime(e.target.value)} aria-label="Time" />
       </div>
-      <Field label="Tables (optional — leave blank to auto-assign)" className="mt-3">
+      <Field label="Tables (optional - leave blank to auto-assign)" className="mt-3">
         <div className="flex flex-wrap gap-1">
           {tables.map((t) => (
             <label key={t.id} className="flex items-center gap-1 rounded border border-stone-300 px-2 py-1 text-xs">

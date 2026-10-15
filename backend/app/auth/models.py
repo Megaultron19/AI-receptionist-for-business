@@ -12,7 +12,7 @@ class StaffUser(Base):
     name: Mapped[str] = mapped_column(String(120))
     email: Mapped[str] = mapped_column(String(254), unique=True)
     password_hash: Mapped[str] = mapped_column(String(256))
-    role: Mapped[str] = mapped_column(String(16))  # owner | manager | receptionist | staff
+    role: Mapped[str] = mapped_column(String(16))
     active: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[datetime] = mapped_column(default=utcnow)
     last_login_at: Mapped[datetime | None]

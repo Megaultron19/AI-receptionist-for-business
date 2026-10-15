@@ -1,5 +1,4 @@
 #!/usr/bin/env bash
-# Fresh database + synthetic demo restaurant + API serving the built dashboard, for Playwright.
 set -euo pipefail
 cd "$(dirname "$0")/../../backend"
 PY=${PYTHON:-../.venv/bin/python}

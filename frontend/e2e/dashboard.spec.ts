@@ -32,7 +32,7 @@ test("owner books a table, sees it on the timeline, checks the guest in", async 
   await dialog.getByRole("button", { name: "Book table" }).click();
   const row = page.getByRole("row", { name: /Meera Iyer/ });
   await expect(row).toContainText("Confirmed");
-  await expect(row).toContainText("P1"); // a 4-seat table: no wasted seats (T3 ties; P1 sorts first)
+  await expect(row).toContainText("P1");
   await go(page, "Tables");
   await page.getByLabel("Day").fill(tomorrow());
   await expect(page.getByTitle(/Meera Iyer · 4 guests · confirmed/)).toBeVisible();
@@ -68,7 +68,6 @@ test("menu availability, phone order with server bill, kitchen flow", async ({ p
   await lassi.getByRole("button", { name: "Mark out of stock" }).click();
   await expect(lassi.getByRole("button", { name: "Back in stock" })).toBeVisible();
 
-  // Pay-at-restaurant (no Razorpay keys in e2e) and open around the clock so the test doesn't depend on the time of day
   const allDay = Object.fromEntries(["mon", "tue", "wed", "thu", "fri", "sat", "sun"].map((d) => [d, [["00:00", "23:59"], ["23:59", "00:00"]]]));
   await page.request.patch("/api/settings", { data: { min_payment_type: "none", opening_hours: allDay }, headers: { "X-CSRF-Token": (await page.context().cookies()).find((c) => c.name === "rr_csrf")!.value } });
   await go(page, "Orders");
@@ -78,18 +77,18 @@ test("menu availability, phone order with server bill, kitchen flow", async ({ p
   await d.getByLabel("Name").fill("Arjun");
   await d.getByRole("button", { name: "Start order" }).click();
   const b = page.getByRole("dialog", { name: /Order F/ });
-  await b.getByLabel("Dish").selectOption({ label: "Starters: Paneer Tikka — ₹280" });
+  await b.getByLabel("Dish").selectOption({ label: "Starters: Paneer Tikka - ₹280" });
   await b.getByLabel("Quantity").fill("2");
   await b.getByRole("button", { name: "Add" }).click();
   await expect(b).toContainText("₹560");
-  await expect(b.getByRole("row", { name: /Total/ })).toContainText("₹609"); // ₹560 + ₹20 packaging + 5% GST, computed by the backend
+  await expect(b.getByRole("row", { name: /Total/ })).toContainText("₹609");
   await b.getByRole("button", { name: "+" }).click();
   await expect(b.getByRole("row", { name: /Total/ })).toContainText("₹903");
   await b.getByRole("button", { name: /send to kitchen/ }).click();
   page.once("dialog", (dlg) => dlg.accept("5"));
   const card = page.locator(".card", { hasText: "Arjun" });
   await card.getByRole("button", { name: "Accept", exact: true }).click();
-  await expect(card).toHaveCount(0); // left the "To accept" list
+  await expect(card).toHaveCount(0);
   await page.getByRole("button", { name: "In kitchen" }).click();
   await expect(card).toContainText("Accepted");
   await expect(card).toContainText("Ready by");
@@ -141,5 +140,5 @@ test("settings, holidays and staff management", async ({ page }) => {
   await d.getByRole("button", { name: "Create" }).click();
   await expect(page.getByRole("row", { name: /Priya/ })).toBeVisible();
   await go(page, "Usage & health", "Usage & integration health");
-  await expect(page.getByText("NOT RUNNING")).toBeVisible(); // no worker in this e2e run: surfaced honestly
+  await expect(page.getByText("NOT RUNNING")).toBeVisible();
 });

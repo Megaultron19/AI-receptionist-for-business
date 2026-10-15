@@ -20,7 +20,7 @@ def check_intervals(intervals: list[list[str]]) -> list[list[str]]:
 class Charge(BaseModel):
     name: str = Field(min_length=1, max_length=60)
     kind: Literal["percent", "flat"]
-    value: int = Field(ge=0)  # basis points (percent) or paise (flat)
+    value: int = Field(ge=0)
     taxable: bool = True
     applies_to: Literal["all", "pickup", "dine_in"] = "all"
 

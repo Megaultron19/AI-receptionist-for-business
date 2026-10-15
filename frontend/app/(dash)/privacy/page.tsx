@@ -28,7 +28,7 @@ export default function PrivacyPage() {
         <input className="input mb-2 w-72" placeholder="Search name or phone" value={q} onChange={(e) => setQ(e.target.value)} />
         <ErrorText error={list.error || act.error} /><Notice text={ok} />
         <table className="table"><tbody>{list.data?.map((c) => (
-          <tr key={c.id}><td>{c.name || "—"}</td><td>{c.phone}</td><td>{c.whatsapp_opt_in ? "WhatsApp consent" : ""}</td>
+          <tr key={c.id}><td>{c.name || "-"}</td><td>{c.phone}</td><td>{c.whatsapp_opt_in ? "WhatsApp consent" : ""}</td>
             <td className="whitespace-nowrap text-right">
               <button className="btn-ghost" onClick={async () => { const d = await act.run(() => api(`/api/customers/${c.id}/export`)); if (d) download(`customer-${c.id}.json`, d); }}>Export</button>
               <button className="btn-ghost ml-1 text-red-700" onClick={async () => {

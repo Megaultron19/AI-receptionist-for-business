@@ -36,9 +36,9 @@ def test_request_shape_and_verbatim_transcript():
     tool = b["tools"][0]
     assert tool["strict"] is True and tool["input_schema"]["additionalProperties"] is False
     assert tool["input_schema"]["required"] == ["date", "time", "party_size"]
-    assert "thinking" not in b and "tool_choice" not in b  # Opus 5.5: adaptive thinking by default, no forced tools
+    assert "thinking" not in b and "tool_choice" not in b
     assert turn.stop == "tool_use" and turn.tool_calls[0].input["party_size"] == 2 and turn.input_tokens == 1200
-    assert t[-1]["content"][0] == {"type": "thinking", "thinking": "", "signature": "sig"}  # replayed verbatim
+    assert t[-1]["content"][0] == {"type": "thinking", "thinking": "", "signature": "sig"}
     t = p.add_tool_results(t, [("tu1", '{"free_times": ["19:00"]}', False)])
     assert t[-1]["content"][0]["tool_use_id"] == "tu1"
 

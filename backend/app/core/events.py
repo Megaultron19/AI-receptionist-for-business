@@ -24,13 +24,13 @@ PAGE_STAFF = {"handoff", "callback", "new_order", "ai_unavailable", "complaint"}
 
 def alert(db: Session, kind: str, message: str, *, severity: str = "info", ref: tuple[str, Any] | None = None) -> Alert:
     """Dashboard alert; important ones are also pushed to the staff WhatsApp numbers."""
-    from .jobs import enqueue  # local import: jobs imports this module
+    from .jobs import enqueue
     a = Alert(kind=kind, message=message, severity=severity,
               ref_type=ref[0] if ref else None, ref_id=str(ref[1]) if ref else None)
     db.add(a)
     db.flush()
     log.log(logging.WARNING if severity != "info" else logging.INFO, "alert %s #%s ref=%s:%s", kind, a.id,
-            a.ref_type, a.ref_id)  # message text stays in the DB: it can contain customer details
+            a.ref_type, a.ref_id)
     if severity == "error" or kind in PAGE_STAFF:
         enqueue(db, "notify.staff", {"alert_id": a.id, "message": message[:900]}, dedupe_key=f"staff-alert:{a.id}", max_attempts=3)
     return a

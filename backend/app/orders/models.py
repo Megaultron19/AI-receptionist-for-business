@@ -14,10 +14,9 @@ class OrderItem(Base):
     order_id: Mapped[int] = mapped_column(ForeignKey("orders.id", ondelete="CASCADE"), index=True)
     menu_item_id: Mapped[int] = mapped_column(ForeignKey("menu_items.id"))
     variant_id: Mapped[int | None] = mapped_column(ForeignKey("menu_variants.id", ondelete="SET NULL"))
-    # Snapshots: the bill must not change if the menu is edited later.
     item_name: Mapped[str] = mapped_column(String(120))
     variant_name: Mapped[str] = mapped_column(String(60), default="")
-    addons: Mapped[list[dict[str, Any]]] = mapped_column(JSON, default=list)  # [{id, name, price_paise}]
+    addons: Mapped[list[dict[str, Any]]] = mapped_column(JSON, default=list)
     unit_price_paise: Mapped[int] = mapped_column(Integer)
     quantity: Mapped[int] = mapped_column(Integer)
     instructions: Mapped[str] = mapped_column(String(300), default="")
@@ -30,24 +29,22 @@ class Order(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     ref: Mapped[str] = mapped_column(String(12), unique=True)
     customer_id: Mapped[int] = mapped_column(ForeignKey("customers.id"), index=True)
-    channel: Mapped[str] = mapped_column(String(16))  # voice | whatsapp | dashboard
-    order_type: Mapped[str] = mapped_column(String(16), default="pickup")  # pickup | dine_in
+    channel: Mapped[str] = mapped_column(String(16))
+    order_type: Mapped[str] = mapped_column(String(16), default="pickup")
     reservation_id: Mapped[int | None] = mapped_column(ForeignKey("reservations.id"))
-    scheduled_for: Mapped[datetime | None]  # None = as soon as possible
-    # draft | awaiting_payment | payment_pending | paid | submitted | accepted | preparing | ready | completed | cancelled | refunded
+    scheduled_for: Mapped[datetime | None]
     status: Mapped[str] = mapped_column(String(20), default="draft", index=True)
     special_instructions: Mapped[str] = mapped_column(Text, default="")
-    # Server-computed bill (see billing.compute_bill); never taken from the client or the AI.
     bill: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
     subtotal_paise: Mapped[int] = mapped_column(Integer, default=0)
     discount_paise: Mapped[int] = mapped_column(Integer, default=0)
     charges_paise: Mapped[int] = mapped_column(Integer, default=0)
     tax_paise: Mapped[int] = mapped_column(Integer, default=0)
     total_paise: Mapped[int] = mapped_column(Integer, default=0)
-    amount_due_paise: Mapped[int] = mapped_column(Integer, default=0)  # minimum payment before submission
+    amount_due_paise: Mapped[int] = mapped_column(Integer, default=0)
     amount_paid_paise: Mapped[int] = mapped_column(Integer, default=0)
-    estimate_minutes: Mapped[int | None] = mapped_column(Integer)  # quote shown before acceptance (not a promise)
-    estimated_ready_at: Mapped[datetime | None]  # set by the restaurant when it accepts
+    estimate_minutes: Mapped[int | None] = mapped_column(Integer)
+    estimated_ready_at: Mapped[datetime | None]
     invoice_number: Mapped[str | None] = mapped_column(String(32), unique=True)
     customer_gstin: Mapped[str] = mapped_column(String(15), default="")
     created_at: Mapped[datetime] = mapped_column(default=utcnow, index=True)

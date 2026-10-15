@@ -1,8 +1,8 @@
 """Provider-independent LLM interface with structured tool calling.
 
 The agent loop (agent.py) only sees ToolCall / Turn objects. Each provider owns its transcript format
-(stored opaquely on the conversation) so provider-specific details — e.g. Claude's thinking blocks that
-must be replayed verbatim — never leak into business code. Add a provider by implementing LLMProvider
+(stored opaquely on the conversation) so provider-specific details - e.g. Claude's thinking blocks that
+must be replayed verbatim - never leak into business code. Add a provider by implementing LLMProvider
 and registering it in PROVIDERS.
 """
 import logging
@@ -29,7 +29,7 @@ class ToolCall:
 class Turn:
     text: str
     tool_calls: list[ToolCall]
-    stop: str  # end | tool_use | refusal | max_tokens
+    stop: str
     input_tokens: int = 0
     output_tokens: int = 0
     model: str = ""
@@ -39,7 +39,7 @@ class Turn:
 class ToolSpec:
     name: str
     description: str
-    parameters: dict[str, Any]  # JSON-schema properties
+    parameters: dict[str, Any]
     required: list[str] = field(default_factory=list)
 
 
@@ -57,7 +57,6 @@ class LLMProvider(Protocol):
 class AnthropicProvider:
     """Claude via the official Anthropic SDK (Messages API, manual tool loop)."""
     name = "anthropic"
-    # Models that accept the server-side refusal fallback in its "default" form.
     FALLBACK_MODELS = ("claude-opus-5-5", "claude-opus-5", "claude-fable-5-1", "claude-sonnet-5-5")
 
     def __init__(self):
@@ -91,7 +90,6 @@ class AnthropicProvider:
                 output_config={"effort": self.effort}, **extra)
         except self._anthropic.APIError as e:
             raise LLMError(f"{type(e).__name__}: {e}") from e
-        # Keep every block verbatim (thinking included) so the transcript stays append-only and valid.
         transcript = [*transcript, {"role": "assistant", "content": [b.model_dump(mode="json", exclude_none=True) for b in resp.content]}]
         calls = [ToolCall(b.id, b.name, dict(b.input)) for b in resp.content if b.type == "tool_use"]
         text = " ".join(b.text for b in resp.content if b.type == "text").strip()

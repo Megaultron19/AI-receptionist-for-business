@@ -14,14 +14,13 @@ class RestaurantSettings(Base):
     __tablename__ = "restaurant_settings"
     id: Mapped[int] = mapped_column(primary_key=True)
 
-    # Profile
     name: Mapped[str] = mapped_column(String(200), default="My Restaurant")
-    name_pronunciation: Mapped[str] = mapped_column(String(200), default="")  # how the voice agent should say it
+    name_pronunciation: Mapped[str] = mapped_column(String(200), default="")
     legal_name: Mapped[str] = mapped_column(String(200), default="")
     address: Mapped[str] = mapped_column(Text, default="")
     city: Mapped[str] = mapped_column(String(100), default="")
     state: Mapped[str] = mapped_column(String(100), default="")
-    state_code: Mapped[str] = mapped_column(String(4), default="")  # GST state code, e.g. 27 for Maharashtra
+    state_code: Mapped[str] = mapped_column(String(4), default="")
     pincode: Mapped[str] = mapped_column(String(10), default="")
     phone: Mapped[str] = mapped_column(String(20), default="")
     maps_url: Mapped[str] = mapped_column(String(500), default="")
@@ -31,20 +30,17 @@ class RestaurantSettings(Base):
     arrival_instructions: Mapped[str] = mapped_column(Text, default="")
     pickup_instructions: Mapped[str] = mapped_column(Text, default="")
 
-    # AI receptionist
     languages: Mapped[list[str]] = mapped_column(JSON, default=lambda: ["en-IN", "hi-IN"])
     primary_language: Mapped[str] = mapped_column(String(8), default="en-IN")
     greeting_en: Mapped[str] = mapped_column(Text, default="")
     greeting_hi: Mapped[str] = mapped_column(Text, default="")
-    ai_knowledge: Mapped[str] = mapped_column(Text, default="")  # approved facts: parking, policies, FAQ
+    ai_knowledge: Mapped[str] = mapped_column(Text, default="")
     ai_enabled: Mapped[bool] = mapped_column(Boolean, default=True)
     transfer_number: Mapped[str] = mapped_column(String(20), default="")
     staff_alert_numbers: Mapped[list[str]] = mapped_column(JSON, default=list)
 
-    # Hours
     opening_hours: Mapped[dict[str, list[list[str]]]] = mapped_column(JSON, default=lambda: dict(DEFAULT_HOURS))
 
-    # Reservation rules
     reservations_enabled: Mapped[bool] = mapped_column(Boolean, default=True)
     slot_interval_minutes: Mapped[int] = mapped_column(Integer, default=15)
     default_duration_minutes: Mapped[int] = mapped_column(Integer, default=90)
@@ -54,34 +50,31 @@ class RestaurantSettings(Base):
     max_advance_days: Mapped[int] = mapped_column(Integer, default=30)
     min_party: Mapped[int] = mapped_column(Integer, default=1)
     max_party: Mapped[int] = mapped_column(Integer, default=12)
-    hold_minutes: Mapped[int] = mapped_column(Integer, default=15)  # deposit holds and waitlist offers
+    hold_minutes: Mapped[int] = mapped_column(Integer, default=15)
     deposit_per_guest_paise: Mapped[int] = mapped_column(Integer, default=0)
-    deposit_min_party: Mapped[int] = mapped_column(Integer, default=0)  # 0 = deposits off
-    cancellation_cutoff_minutes: Mapped[int] = mapped_column(Integer, default=120)  # customer self-cancel/reschedule
+    deposit_min_party: Mapped[int] = mapped_column(Integer, default=0)
+    cancellation_cutoff_minutes: Mapped[int] = mapped_column(Integer, default=120)
     cancellation_policy: Mapped[str] = mapped_column(Text, default="")
     no_show_grace_minutes: Mapped[int] = mapped_column(Integer, default=30)
     reminder_offsets_minutes: Mapped[list[int]] = mapped_column(JSON, default=lambda: [1440, 120])
     reminder_channels: Mapped[list[str]] = mapped_column(JSON, default=lambda: ["whatsapp"])
 
-    # Ordering
     ordering_enabled: Mapped[bool] = mapped_column(Boolean, default=True)
     prep_target_minutes: Mapped[int] = mapped_column(Integer, default=5)
     kitchen_parallel_orders: Mapped[int] = mapped_column(Integer, default=4)
     max_active_orders: Mapped[int] = mapped_column(Integer, default=25)
     auto_accept_orders: Mapped[bool] = mapped_column(Boolean, default=False)
-    min_payment_type: Mapped[str] = mapped_column(String(8), default="full")  # full | percent | flat | none
-    min_payment_value: Mapped[int] = mapped_column(Integer, default=0)  # basis points for percent, paise for flat
-    default_tax_rate_bp: Mapped[int] = mapped_column(Integer, default=500)  # 5% GST = 2.5% CGST + 2.5% SGST
+    min_payment_type: Mapped[str] = mapped_column(String(8), default="full")
+    min_payment_value: Mapped[int] = mapped_column(Integer, default=0)
+    default_tax_rate_bp: Mapped[int] = mapped_column(Integer, default=500)
     prices_include_tax: Mapped[bool] = mapped_column(Boolean, default=False)
     charges: Mapped[list[dict[str, Any]]] = mapped_column(JSON, default=list)
     discounts: Mapped[list[dict[str, Any]]] = mapped_column(JSON, default=list)
     invoice_prefix: Mapped[str] = mapped_column(String(16), default="INV")
     next_invoice_number: Mapped[int] = mapped_column(Integer, default=1)
 
-    # WhatsApp template names (approved in Meta) for messages outside the 24h service window
     whatsapp_templates: Mapped[dict[str, dict[str, str]]] = mapped_column(JSON, default=dict)
 
-    # Data retention
     transcript_retention_days: Mapped[int] = mapped_column(Integer, default=180)
 
     updated_at: Mapped[datetime] = mapped_column(default=utcnow, onupdate=utcnow)

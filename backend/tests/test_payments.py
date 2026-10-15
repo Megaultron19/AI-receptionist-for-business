@@ -26,19 +26,19 @@ def paid_order_flow(db, menu):
 def test_payment_link_created_from_server_amount_and_idempotent(db, menu, rzp):
     o = paid_order_flow(db, menu)
     assert o.status == "awaiting_payment" and o.amount_due_paise == o.total_paise == 58800
-    rzp.fail_next = 3  # Razorpay down: the job retries with backoff instead of failing the order
+    rzp.fail_next = 3
     drain()
     p = db.scalar(select(Payment).where(Payment.order_id == o.id))
     assert p.status == "creating"
     from app.core.models import Job
-    for _ in range(3):  # fast-forward each backoff so the retries run now
+    for _ in range(3):
         db.execute(Job.__table__.update().where(Job.status == "queued").values(run_at=Job.created_at))
         db.commit()
         drain()
     db.refresh(p)
     assert db.get(Job, 1).attempts == 4
     assert p.status == "created" and p.amount_paise == 58800 and p.short_url.startswith("https://rzp.io/")
-    assert [c[0] for c in rzp.calls] == ["create"]  # exactly one link despite retries
+    assert [c[0] for c in rzp.calls] == ["create"]
 
 
 def test_webhook_signature_duplicates_and_independent_verification(db, owner, menu, rzp):
@@ -46,15 +46,12 @@ def test_webhook_signature_duplicates_and_independent_verification(db, owner, me
     drain()
     p = db.scalar(select(Payment).where(Payment.order_id == o.id))
     link = {"payment_link": {"entity": {"id": p.provider_link_id, "status": "paid"}}}
-    # Bad signature rejected
     r = owner.post("/webhooks/razorpay", content=b'{"event":"payment_link.paid"}', headers={"X-Razorpay-Signature": "bad"})
     assert r.status_code == 400
-    # A forged "paid" webhook (correctly signed but the link is NOT paid at Razorpay) must not mark it paid
     assert razorpay_webhook(owner, "payment_link.paid", link, "evt_1").json()["duplicate"] is False
     drain()
     db.refresh(p)
     assert p.status == "created"
-    # Customer actually pays
     rzp.pay(p.provider_link_id)
     razorpay_webhook(owner, "payment_link.paid", link, "evt_2")
     assert razorpay_webhook(owner, "payment_link.paid", link, "evt_2").json()["duplicate"] is True
@@ -63,7 +60,6 @@ def test_webhook_signature_duplicates_and_independent_verification(db, owner, me
     p, o = db.get(Payment, p.id), db.get(Order, o.id)
     assert p.status == "paid" and p.provider_payment_id.startswith("pay_")
     assert o.status == "submitted" and o.amount_paid_paise == 58800 and o.invoice_number
-    # Out-of-order: a late payment.failed must not undo a verified payment
     razorpay_webhook(owner, "payment.failed", {"payment": {"entity": {"id": p.provider_payment_id, "error_description": "bank declined"}}}, "evt_3")
     drain()
     db.expire_all()
@@ -86,7 +82,7 @@ def test_failed_attempt_then_success(db, owner, menu, rzp):
     from app.payments.service import reconcile
     db.execute(Payment.__table__.update().values(created_at=Payment.created_at - __import__("datetime").timedelta(minutes=5)))
     db.commit()
-    reconcile(db)  # no webhook at all: reconciliation still finds the payment
+    reconcile(db)
     db.commit()
     assert db.get(Order, o.id).status == "submitted"
 
@@ -106,10 +102,10 @@ def test_edit_after_link_then_late_payment_is_refunded(db, owner, menu, rzp):
     o = paid_order_flow(db, menu)
     drain()
     old = db.scalar(select(Payment).where(Payment.order_id == o.id))
-    rzp.pay(old.provider_link_id)  # customer pays the old link...
-    orders.reopen_for_edit(db, o, actor=SYS)  # ...while also asking to change the order
+    rzp.pay(old.provider_link_id)
+    orders.reopen_for_edit(db, o, actor=SYS)
     db.commit()
-    drain()  # cancel job finds the link already paid -> late payment -> refund
+    drain()
     db.expire_all()
     old = db.get(Payment, old.id)
     assert old.status == "paid" and len(old.refunds) == 1 and old.refunds[0].status == "pending"
@@ -135,7 +131,7 @@ def test_restaurant_rejects_paid_order_refund_flow(db, owner, menu, rzp):
     p = db.get(Payment, p.id)
     assert p.refunds and p.refunds[0].amount_paise == 58800
     r = owner.post(f"/api/payments/{p.ref}/refund", json={"amount_paise": 100, "reason": "double refund"})
-    assert r.status_code == 400  # nothing left to refund
+    assert r.status_code == 400
 
 
 def test_deposit_confirms_reservation_only_after_verified_payment(db, owner, restaurant, rzp):

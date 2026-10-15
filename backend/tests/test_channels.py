@@ -23,7 +23,7 @@ def test_voice_silence_hindi_and_twilio(db, restaurant, llm):
     plivo_post(c, "/voice/plivo/answer", CALL)
     r = plivo_post(c, "/voice/plivo/turn?n=0", CALL | {"Digits": "2"})
     assert 'language="hi-IN"' in r.text and "नमस्ते" in r.text
-    r = plivo_post(c, "/voice/plivo/turn?n=0", CALL)  # nothing recognised
+    r = plivo_post(c, "/voice/plivo/turn?n=0", CALL)
     assert "माफ़ कीजिए" in r.text and "n=1" in r.text
     r = plivo_post(c, "/voice/plivo/turn?n=2", CALL)
     assert "<Hangup/>" in r.text
@@ -48,7 +48,6 @@ def test_ai_outage_on_call_transfers_or_takes_callback(db, restaurant, llm):
     assert db.scalar(select(Alert).where(Alert.kind == "ai_unavailable")).severity == "error"
     r = plivo_post(c, "/voice/plivo/dial-result", CALL | {"DialStatus": "no-answer"})
     assert "call you back" in r.text and db.scalar(select(CallbackRequest)).status == "open"
-    # No transfer number configured: straight to a callback request
     restaurant.transfer_number = ""
     db.commit()
     call2 = CALL | {"CallUUID": "c-10"}
@@ -78,7 +77,6 @@ def test_whatsapp_webhook_security_status_stop_and_human_mode(db, owner, restaur
     drain()
     out = db.scalar(select(Message).where(Message.direction == "out"))
     assert out.body == "Hello! How can I help?" and out.status == "sent"
-    # Delivery receipts (out of order) update the inbox
     import hashlib, hmac, json
     for st in ("read", "delivered"):
         body = json.dumps({"entry": [{"changes": [{"value": {"metadata": {"phone_number_id": "1111"},
@@ -94,7 +92,7 @@ def test_whatsapp_webhook_security_status_stop_and_human_mode(db, owner, restaur
     bot = llm("should not be called")
     wa_inbound(c, "are you there?", "w3")
     drain()
-    assert bot.calls == 0  # staff own the thread; AI stays silent
+    assert bot.calls == 0
     wa_inbound(c, "", "w4", mtype="audio")
     drain()
 
@@ -110,7 +108,7 @@ def test_whatsapp_send_failure_retries_without_rerunning_ai(db, restaurant, wa, 
     db.execute(Job.__table__.update().where(Job.status == "queued").values(run_at=Job.created_at))
     db.commit()
     drain()
-    assert wa.sent[-1][2] == "Here's our menu..." and bot.calls == 1  # same answer resent, AI not asked twice
+    assert wa.sent[-1][2] == "Here's our menu..." and bot.calls == 1
 
 
 def test_whatsapp_ai_outage_hands_off(db, restaurant, wa, llm):

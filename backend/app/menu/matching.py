@@ -25,14 +25,13 @@ def score(query: str, name: str) -> float:
     ratio = SequenceMatcher(None, q, n).ratio()
     qt, nt = set(q.split()), set(n.split())
     overlap = len(qt & nt) / len(qt) if qt else 0
-    # "paneer tikka" inside "paneer tikka masala": a partial (not complete) name match.
     contained = 0.75 if (q in n or n in q) else 0
     return max(ratio, overlap * 0.8, contained)
 
 
 @dataclass
 class MatchResult:
-    status: str  # matched | ambiguous | not_found
+    status: str
     item: MenuItem | None = None
     candidates: list[MenuItem] = field(default_factory=list)
 

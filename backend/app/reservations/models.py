@@ -18,12 +18,11 @@ class Reservation(Base):
     party_size: Mapped[int] = mapped_column(Integer)
     starts_at: Mapped[datetime] = mapped_column(index=True)
     ends_at: Mapped[datetime]
-    # held (awaiting deposit / waitlist offer) | confirmed | arrived | seated | completed | cancelled | no_show
     status: Mapped[str] = mapped_column(String(16), index=True)
-    hold_reason: Mapped[str | None] = mapped_column(String(16))  # deposit | waitlist
+    hold_reason: Mapped[str | None] = mapped_column(String(16))
     hold_expires_at: Mapped[datetime | None]
-    source: Mapped[str] = mapped_column(String(16))  # voice | whatsapp | dashboard | waitlist
-    notes: Mapped[str] = mapped_column(Text, default="")  # customer special requests
+    source: Mapped[str] = mapped_column(String(16))
+    notes: Mapped[str] = mapped_column(Text, default="")
     staff_notes: Mapped[str] = mapped_column(Text, default="")
     deposit_paise: Mapped[int] = mapped_column(Integer, default=0)
     created_at: Mapped[datetime] = mapped_column(default=utcnow)
@@ -47,7 +46,7 @@ class WaitlistEntry(Base):
     earliest: Mapped[datetime]
     latest: Mapped[datetime]
     party_size: Mapped[int] = mapped_column(Integer)
-    status: Mapped[str] = mapped_column(String(16), default="waiting")  # waiting | offered | booked | expired | cancelled
+    status: Mapped[str] = mapped_column(String(16), default="waiting")
     reservation_id: Mapped[int | None] = mapped_column(ForeignKey("reservations.id"))
     source: Mapped[str] = mapped_column(String(16), default="dashboard")
     notes: Mapped[str] = mapped_column(Text, default="")

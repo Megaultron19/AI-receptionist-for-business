@@ -56,7 +56,6 @@ def create_payment_link(*, amount_paise: int, reference_id: str, description: st
     return request("POST", "/payment_links", json={
         "amount": amount_paise, "currency": "INR", "accept_partial": False, "reference_id": reference_id,
         "description": description[:2048], "customer": {"name": customer_name[:100] or "Guest", "contact": contact},
-        # We deliver the link on WhatsApp; Razorpay's own SMS is the fallback for customers we can't reach there.
         "notify": {"sms": sms, "email": False}, "reminder_enable": False, "expire_by": expire_by, "notes": notes,
     })
 

@@ -12,18 +12,16 @@ class Conversation(Base):
     """One WhatsApp thread or one phone call with a customer."""
     __tablename__ = "conversations"
     id: Mapped[int] = mapped_column(primary_key=True)
-    channel: Mapped[str] = mapped_column(String(16))  # whatsapp | voice
+    channel: Mapped[str] = mapped_column(String(16))
     customer_id: Mapped[int] = mapped_column(ForeignKey("customers.id"), index=True)
-    external_id: Mapped[str] = mapped_column(String(80), index=True)  # call id, or customer number for WhatsApp
-    mode: Mapped[str] = mapped_column(String(8), default="ai")  # ai | human (staff took over)
-    status: Mapped[str] = mapped_column(String(8), default="open")  # open | closed
+    external_id: Mapped[str] = mapped_column(String(80), index=True)
+    mode: Mapped[str] = mapped_column(String(8), default="ai")
+    status: Mapped[str] = mapped_column(String(8), default="open")
     handoff_reason: Mapped[str] = mapped_column(String(200), default="")
     handoff_at: Mapped[datetime | None]
     assigned_to: Mapped[int | None] = mapped_column(Integer)
     language: Mapped[str] = mapped_column(String(8), default="")
-    # LLM provider transcript (opaque to everything but the provider adapter; append-only).
     transcript: Mapped[list[dict[str, Any]]] = mapped_column(JSON, default=list)
-    # Working memory for the agent: current draft order ref, pending reservation offer, etc.
     state: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
     last_message_at: Mapped[datetime] = mapped_column(default=utcnow, index=True)
     created_at: Mapped[datetime] = mapped_column(default=utcnow)
@@ -39,13 +37,13 @@ class Message(Base):
     conversation_id: Mapped[int | None] = mapped_column(ForeignKey("conversations.id", ondelete="CASCADE"), index=True)
     customer_id: Mapped[int] = mapped_column(ForeignKey("customers.id"), index=True)
     channel: Mapped[str] = mapped_column(String(16), default="whatsapp")
-    direction: Mapped[str] = mapped_column(String(4))  # in | out
-    sender: Mapped[str] = mapped_column(String(12))  # customer | ai | staff | system
+    direction: Mapped[str] = mapped_column(String(4))
+    sender: Mapped[str] = mapped_column(String(12))
     body: Mapped[str] = mapped_column(Text, default="")
-    media: Mapped[str] = mapped_column(String(16), default="")  # image | audio | ...
+    media: Mapped[str] = mapped_column(String(16), default="")
     template: Mapped[str] = mapped_column(String(100), default="")
     wa_message_id: Mapped[str | None] = mapped_column(String(128), unique=True)
-    status: Mapped[str] = mapped_column(String(12), default="received")  # received | sent | delivered | read | failed
+    status: Mapped[str] = mapped_column(String(12), default="received")
     error: Mapped[str] = mapped_column(String(300), default="")
     staff_id: Mapped[int | None] = mapped_column(Integer)
     created_at: Mapped[datetime] = mapped_column(default=utcnow, index=True)
@@ -64,7 +62,6 @@ class Call(Base):
     duration_seconds: Mapped[int] = mapped_column(Integer, default=0)
     language: Mapped[str] = mapped_column(String(8), default="")
     turns: Mapped[int] = mapped_column(Integer, default=0)
-    # in_progress | info | reservation | order | transferred | callback | abandoned | failed
     outcome: Mapped[str] = mapped_column(String(16), default="in_progress")
     error: Mapped[str] = mapped_column(String(300), default="")
 
@@ -76,7 +73,7 @@ class CallbackRequest(Base):
     phone: Mapped[str] = mapped_column(String(20))
     reason: Mapped[str] = mapped_column(String(300), default="")
     source: Mapped[str] = mapped_column(String(16), default="voice")
-    status: Mapped[str] = mapped_column(String(12), default="open")  # open | done | cancelled
+    status: Mapped[str] = mapped_column(String(12), default="open")
     created_at: Mapped[datetime] = mapped_column(default=utcnow)
     handled_by: Mapped[int | None] = mapped_column(Integer)
     handled_at: Mapped[datetime | None]
@@ -94,8 +91,8 @@ class Notification(Base):
     kind: Mapped[str] = mapped_column(String(32))
     customer_id: Mapped[int] = mapped_column(ForeignKey("customers.id"), index=True)
     channel: Mapped[str] = mapped_column(String(16), default="whatsapp")
-    status: Mapped[str] = mapped_column(String(16), default="pending")  # pending | sent | delivered | read | failed | skipped
-    method: Mapped[str] = mapped_column(String(16), default="")  # session | template
+    status: Mapped[str] = mapped_column(String(16), default="pending")
+    method: Mapped[str] = mapped_column(String(16), default="")
     wa_message_id: Mapped[str | None] = mapped_column(String(128))
     error: Mapped[str] = mapped_column(String(300), default="")
     ref_type: Mapped[str] = mapped_column(String(16), default="")

@@ -8,17 +8,16 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
-    environment: str = "development"  # development | production
+    environment: str = "development"
     database_url: str = "postgresql+psycopg://postgres@localhost:5432/resto"
-    secret_key: str = ""  # signs nothing yet; required so sessions/csrf can rely on it later
-    public_base_url: str = "http://localhost:8000"  # public https URL of the backend (webhooks, QR links)
+    secret_key: str = ""
+    public_base_url: str = "http://localhost:8000"
     dashboard_url: str = "http://localhost:3000"
-    dashboard_dir: str = ""  # optional: serve the built dashboard (frontend/out) from this process
-    cors_origins: str = ""  # comma-separated; empty = same-origin only (dashboard proxies /api)
+    dashboard_dir: str = ""
+    cors_origins: str = ""
     log_level: str = "INFO"
     sentry_dsn: str = ""
 
-    # AI
     anthropic_api_key: str = ""
     llm_provider: str = "anthropic"
     anthropic_model: str = "claude-opus-5-5"
@@ -26,25 +25,21 @@ class Settings(BaseSettings):
     llm_timeout_seconds: float = 20.0
     voice_llm_timeout_seconds: float = 9.0
 
-    # Voice
     plivo_auth_id: str = ""
     plivo_auth_token: str = ""
     twilio_account_sid: str = ""
     twilio_auth_token: str = ""
 
-    # WhatsApp Cloud API
     meta_access_token: str = ""
     meta_app_secret: str = ""
     meta_verify_token: str = ""
     meta_phone_number_id: str = ""
     meta_graph_version: str = "v23.0"
 
-    # Razorpay
     razorpay_key_id: str = ""
     razorpay_key_secret: str = ""
     razorpay_webhook_secret: str = ""
 
-    # Estimated unit costs (paise) for the usage page; set to your actual provider rates.
     cost_voice_per_minute_paise: int = 100
     cost_whatsapp_service_msg_paise: int = 0
     cost_whatsapp_template_msg_paise: int = 90

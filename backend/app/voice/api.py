@@ -19,7 +19,6 @@ async def _verified(request: Request, provider: str):
     if not p:
         raise NotFound("Voice provider")
     params = {k: str(v) for k, v in (await request.form()).items()}
-    # Signatures cover the public URL the provider called; TLS usually terminates at a proxy.
     url = get_settings().public_base_url.rstrip("/") + request.url.path + (f"?{request.url.query}" if request.url.query else "")
     if not p.verify(url, params, request.headers):
         raise DomainError("Bad signature", "bad_signature", 403)
@@ -42,9 +41,9 @@ async def answer(provider: str, request: Request, db: Session = Depends(get_db))
 async def turn(provider: str, request: Request, n: int = 0, db: Session = Depends(get_db)):
     p, ev = await _verified(request, provider)
     try:
-        out = await run_in_threadpool(flow.turn, db, p, ev, n)  # LLM + DB work off the event loop
+        out = await run_in_threadpool(flow.turn, db, p, ev, n)
         db.commit()
-    except Exception:  # noqa: BLE001 - never leave a caller in silence
+    except Exception:  # noqa: BLE001
         log.exception("voice turn failed")
         db.rollback()
         out = p.hangup("Sorry, something went wrong on our side. Please call again in a moment.", "en-IN")

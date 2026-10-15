@@ -1,7 +1,3 @@
-# One Compose project per restaurant:
-#   cp .env.example .env   (fill it in)
-#   docker compose -p <restaurant-slug> up -d --build
-# Each project gets its own database volume, containers, credentials and logs.
 name: ${COMPOSE_PROJECT_NAME:-restaurant}
 
 x-app: &app

@@ -26,7 +26,6 @@ def normalize_phone(raw: str, default_country: str = "91") -> str:
 
 def get_or_create(db: Session, phone: str, name: str = "") -> Customer:
     phone = normalize_phone(phone)
-    # Upsert so concurrent channels (a call and a WhatsApp message) can't create duplicates.
     db.execute(insert(Customer).values(phone=phone, name=name.strip()[:120], created_at=utcnow(), language="",
                                        whatsapp_opt_in=False, whatsapp_opt_in_source="", whatsapp_unavailable=False)
                .on_conflict_do_nothing(index_elements=["phone"]))

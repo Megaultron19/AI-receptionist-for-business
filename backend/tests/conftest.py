@@ -37,7 +37,7 @@ def schema():
 @pytest.fixture(autouse=True)
 def clean():
     with engine.begin() as conn:
-        names = ", ".join(f'"{t.name}"' for t in Base.metadata.sorted_tables)  # alembic_version is kept
+        names = ", ".join(f'"{t.name}"' for t in Base.metadata.sorted_tables)
         conn.execute(text(f"TRUNCATE {names} RESTART IDENTITY CASCADE"))
     ratelimit.reset()
     yield
@@ -97,7 +97,6 @@ def owner(db):
 @pytest.fixture()
 def menu(db, restaurant):
     from app.menu.models import Addon, AddonGroup, ItemVariant, MenuCategory, MenuItem
-    # Orders are checked against "now", so keep the kitchen open around the clock for deterministic tests.
     restaurant.opening_hours = {d: [["00:00", "23:59"], ["23:59", "00:00"]] for d in restaurant.opening_hours}
     starters, mains, drinks = MenuCategory(name="Starters"), MenuCategory(name="Mains"), MenuCategory(name="Drinks")
     db.add_all([starters, mains, drinks])
@@ -162,7 +161,6 @@ class FakeRazorpay:
     def list_refunds(self, payment_id):
         return [dict(r) for r in self.refunds.values() if r["payment_id"] == payment_id]
 
-    # Simulate the customer paying on Razorpay's page.
     def pay(self, lid, amount=None):
         l = self.links[lid]
         l["status"], l["amount_paid"] = "paid", amount if amount is not None else l["amount"]

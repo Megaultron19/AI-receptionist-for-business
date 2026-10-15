@@ -39,7 +39,7 @@ def store(db: Session, payload: dict) -> int:
         for change in entry.get("changes", []):
             value = change.get("value", {})
             if value.get("metadata", {}).get("phone_number_id") not in (None, get_settings().meta_phone_number_id):
-                continue  # not our number
+                continue
             for st in value.get("statuses", []):
                 _apply_status(db, st)
             contacts = {c.get("wa_id"): c.get("profile", {}).get("name", "") for c in value.get("contacts", [])}
@@ -55,7 +55,7 @@ def store(db: Session, payload: dict) -> int:
 
 
 def _apply_status(db: Session, st: dict) -> None:
-    status = st.get("status")  # sent | delivered | read | failed
+    status = st.get("status")
     if status not in ("sent", "delivered", "read", "failed"):
         return
     err = (st.get("errors") or [{}])[0]
@@ -63,7 +63,7 @@ def _apply_status(db: Session, st: dict) -> None:
     rank = {"sent": 1, "delivered": 2, "read": 3, "failed": 4}
     for model in (Message, Notification):
         row = db.scalar(select(model).where(model.wa_message_id == st.get("id")).with_for_update())
-        if row and rank.get(status, 0) > rank.get(row.status, 0):  # statuses can arrive out of order
+        if row and rank.get(status, 0) > rank.get(row.status, 0):
             row.status = status
             if status == "failed":
                 row.error = error
@@ -89,7 +89,7 @@ def process(db: Session, webhook_id: int) -> None:
     customer = get_or_create(db, m["from"], ev.payload.get("profile_name", ""))
     convo = _conversation(db, customer)
     if (pending := convo.state.get("pending_reply")) and pending.get("webhook_id") == webhook_id:
-        _reply(db, convo, customer, pending["body"], webhook_id)  # retry after a failed send: resend, don't re-ask the AI
+        _reply(db, convo, customer, pending["body"], webhook_id)
         ev.status, ev.processed_at = "processed", utcnow()
         return
     text = _text(m)
@@ -102,10 +102,10 @@ def process(db: Session, webhook_id: int) -> None:
                        wa_message_id=m["id"], status="received"))
         convo.last_message_at, convo.unread = utcnow(), True
         usage(db, "whatsapp_in", 1)
-        db.commit()  # keep the inbound message even if the AI turn fails
+        db.commit()
 
     if convo.mode == "human":
-        pass  # staff are handling this thread; it shows as unread in the inbox
+        pass
     elif text is not None and text.strip().lower() in STOP_WORDS:
         customer.whatsapp_opt_in = False
         _reply(db, convo, customer, "You won't receive further booking or order messages from us on WhatsApp. "
@@ -128,7 +128,7 @@ def _conversation(db: Session, customer) -> Conversation:
     convo = db.scalar(select(Conversation).where(Conversation.channel == "whatsapp", Conversation.customer_id == customer.id,
                                                  Conversation.status == "open").order_by(Conversation.id.desc()).with_for_update(of=Conversation))
     if convo and convo.mode == "ai" and convo.last_message_at < utcnow() - NEW_THREAD_AFTER and not convo.state.get("pending_reply"):
-        convo.status = "closed"  # start a fresh AI thread instead of growing (or rewriting) an old transcript
+        convo.status = "closed"
         convo = None
     if not convo:
         convo = Conversation(channel="whatsapp", customer_id=customer.id, external_id=customer.phone,

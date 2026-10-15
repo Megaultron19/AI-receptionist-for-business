@@ -12,7 +12,7 @@ class QrToken(Base):
     __tablename__ = "qr_tokens"
     id: Mapped[int] = mapped_column(primary_key=True)
     token_hash: Mapped[str] = mapped_column(String(64), unique=True)
-    kind: Mapped[str] = mapped_column(String(12))  # reservation | order
+    kind: Mapped[str] = mapped_column(String(12))
     reservation_id: Mapped[int | None] = mapped_column(ForeignKey("reservations.id", ondelete="CASCADE"), index=True)
     order_id: Mapped[int | None] = mapped_column(ForeignKey("orders.id", ondelete="CASCADE"), index=True)
     expires_at: Mapped[datetime]
@@ -28,5 +28,5 @@ class QrScan(Base):
     qr_id: Mapped[int | None] = mapped_column(ForeignKey("qr_tokens.id", ondelete="CASCADE"), index=True)
     scanned_at: Mapped[datetime] = mapped_column(default=utcnow, index=True)
     staff_id: Mapped[int | None] = mapped_column(Integer)
-    action: Mapped[str] = mapped_column(String(12))  # lookup | checkin
+    action: Mapped[str] = mapped_column(String(12))
     result: Mapped[str] = mapped_column(String(24))

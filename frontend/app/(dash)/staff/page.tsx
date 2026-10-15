@@ -7,8 +7,8 @@ import { useApp } from "@/components/Shell";
 import { ErrorText, Field, Modal, PageHeader, useAction } from "@/components/ui";
 
 type User = { id: number; name: string; email: string; role: string; active: boolean; last_login_at: string | null };
-const ROLES: [string, string][] = [["staff", "Staff — check-in, kitchen, mark arrivals"], ["receptionist", "Receptionist — bookings, orders, inbox, handoff"],
-  ["manager", "Manager — menu, tables, settings, refunds, reports"], ["owner", "Owner — everything incl. staff & customer data"]];
+const ROLES: [string, string][] = [["staff", "Staff - check-in, kitchen, mark arrivals"], ["receptionist", "Receptionist - bookings, orders, inbox, handoff"],
+  ["manager", "Manager - menu, tables, settings, refunds, reports"], ["owner", "Owner - everything incl. staff & customer data"]];
 
 export default function StaffPage() {
   const { tz, me } = useApp();

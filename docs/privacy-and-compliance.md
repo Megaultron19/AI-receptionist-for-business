@@ -6,7 +6,7 @@ fiduciary for its customers' data; you (the installer) are typically a service p
 
 ## What personal data is stored (in the restaurant's own database)
 Customer phone number, name, language, WhatsApp consent (time and source), bookings, orders, payment
-references (no card/UPI details — those stay with Razorpay), WhatsApp/voice transcripts and messages, call
+references (no card/UPI details - those stay with Razorpay), WhatsApp/voice transcripts and messages, call
 metadata, QR scan logs, staff accounts and an audit log of staff/system actions.
 
 ## Built-in controls
@@ -23,11 +23,11 @@ metadata, QR scan logs, staff accounts and an audit log of staff/system actions.
 - HTTPS everywhere (Caddy), secure cookies in production, CSRF protection, rate limits, webhook signatures.
 
 ## Things the restaurant should do
-- Publish a privacy notice covering the above purposes, retention and contact for requests — the Digital
+- Publish a privacy notice covering the above purposes, retention and contact for requests - the Digital
   Personal Data Protection Act, 2023 and its rules apply to digital personal data of Indian customers.
 - Keep allergen/dietary information accurate; the AI repeats it verbatim.
 - Follow WhatsApp Business Policy (consent, template categories) and Razorpay's terms.
-- TRAI rules on commercial communications apply to promotional calls/SMS — this system makes none.
+- TRAI rules on commercial communications apply to promotional calls/SMS - this system makes none.
 - Decide where the server is hosted; an Indian region keeps data in-country and lowers call latency.
 - Note that conversation text is sent to the configured AI provider (Anthropic) to generate replies; review
   the provider's data-processing terms and mention it in the privacy notice.

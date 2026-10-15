@@ -39,5 +39,5 @@ Example `booking_reminder` body: *Hi {{1}}, a reminder that your table for {{4}}
 (ref {{5}}). Reply CANCEL if you can't make it.*
 
 Inside the 24-hour window confirmations are sent as an image (the QR code) with full details; templates
-carry the QR **link** instead. Meta's pricing and policies change — check the current WhatsApp Business
+carry the QR **link** instead. Meta's pricing and policies change - check the current WhatsApp Business
 Policy and pricing for India before go-live.

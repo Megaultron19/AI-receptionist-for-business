@@ -21,4 +21,4 @@ def setup_logging(level: str) -> None:
     handler = logging.StreamHandler(sys.stdout)
     handler.setFormatter(JsonFormatter())
     logging.basicConfig(level=level, handlers=[handler], force=True)
-    logging.getLogger("httpx").setLevel(logging.WARNING)  # request lines can contain phone numbers
+    logging.getLogger("httpx").setLevel(logging.WARNING)

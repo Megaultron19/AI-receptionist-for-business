@@ -21,7 +21,6 @@ def current_user(request: Request, db: Session = Depends(get_db)) -> StaffUser:
     if not user:
         raise DomainError("Please log in.", "unauthorized", 401)
     if request.method not in SAFE_METHODS:
-        # Double-submit CSRF token: a cross-site page can't read our cookie to echo it in the header.
         cookie, header = request.cookies.get(CSRF_COOKIE, ""), request.headers.get("X-CSRF-Token", "")
         if not cookie or not hmac.compare_digest(cookie, header):
             raise DomainError("Missing or invalid CSRF token. Reload the page.", "csrf", 403)

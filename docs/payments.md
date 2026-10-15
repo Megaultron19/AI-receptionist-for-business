@@ -19,7 +19,7 @@ restart, then make one real small payment and refund it. `app.cli check` warns i
   retried job finds the existing link instead of creating a second one.
 - Webhooks are verified with `X-Razorpay-Signature` over the raw body, stored once per event id, then
   processed by the worker. A payment is marked **paid only after the app fetches the link from Razorpay and
-  sees it fully paid** — a forged, duplicated or out-of-order webhook cannot mark anything paid.
+  sees it fully paid** - a forged, duplicated or out-of-order webhook cannot mark anything paid.
 - A reconciliation job re-checks open links and pending refunds every 5 minutes (covers lost webhooks).
 - Paid → the order is **submitted** to the kitchen; acceptance by the restaurant is a separate step.
 - Payments for an order that was edited/cancelled meanwhile, or a deposit for an expired hold, are

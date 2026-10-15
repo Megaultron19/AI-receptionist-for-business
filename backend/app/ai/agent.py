@@ -20,7 +20,7 @@ MAX_ROUNDS = 8
 class Reply:
     text: str
     flags: dict
-    ok: bool  # False when the AI was unavailable and a fallback was used
+    ok: bool
 
 
 def respond(db: Session, convo: Conversation, customer: Customer, user_text: str, *, channel: str) -> Reply:
@@ -61,7 +61,6 @@ def respond(db: Session, convo: Conversation, customer: Customer, user_text: str
     else:
         text = turn.text or ("Is there anything else I can help you with?" if not voice else "Anything else?")
     if transcript[-1]["role"] == "user":
-        # Ended on tool results (round cap): close the turn so the next request is valid.
         transcript.append({"role": "assistant", "content": [{"type": "text", "text": text}]})
     convo.transcript = transcript
     if any("ऀ" <= ch <= "ॿ" for ch in text):

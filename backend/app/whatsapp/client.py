@@ -8,8 +8,8 @@ from ..config import get_settings
 from ..core.events import integration_result
 
 log = logging.getLogger(__name__)
-NOT_ON_WHATSAPP = {131026}  # message undeliverable: number can't receive WhatsApp messages
-OUTSIDE_WINDOW = {131047}  # more than 24h since the customer's last message: needs a template
+NOT_ON_WHATSAPP = {131026}
+OUTSIDE_WINDOW = {131047}
 RETRYABLE_STATUS = {429, 500, 502, 503, 504}
 
 
@@ -40,7 +40,7 @@ def _post(path: str, *, json: dict | None = None, files: dict | None = None, dat
         code = err.get("code")
         msg = f"{r.status_code} {code}: {err.get('message') or r.text}"[:400]
         retry = r.status_code in RETRYABLE_STATUS or code in (4, 80007, 130429, 131000)
-        integration_result("whatsapp", code in NOT_ON_WHATSAPP | OUTSIDE_WINDOW, msg)  # customer-side errors aren't outages
+        integration_result("whatsapp", code in NOT_ON_WHATSAPP | OUTSIDE_WINDOW, msg)
         raise WhatsAppError(msg, code, retry)
     integration_result("whatsapp", True)
     return r.json()
@@ -73,4 +73,4 @@ def mark_read(message_id: str) -> None:
     try:
         _post("messages", json={"messaging_product": "whatsapp", "status": "read", "message_id": message_id})
     except WhatsAppError:
-        pass  # cosmetic only
+        pass

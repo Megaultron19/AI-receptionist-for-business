@@ -179,6 +179,6 @@ def invoice(ref: str, db: Session = Depends(get_db), _: StaffUser = Depends(requ
                    "state": r.state, "state_code": r.state_code, "pincode": r.pincode, "gstin": r.gstin,
                    "fssai": r.fssai_license, "phone": r.phone},
         "buyer": {"name": o.customer.name, "phone": o.customer.phone, "gstin": o.customer_gstin},
-        "place_of_supply": r.state_code, "sac": "996331",  # SAC for restaurant services; confirm with your accountant
+        "place_of_supply": r.state_code, "sac": "996331",
         "bill": o.bill, "amount_paid_paise": o.amount_paid_paise,
     }

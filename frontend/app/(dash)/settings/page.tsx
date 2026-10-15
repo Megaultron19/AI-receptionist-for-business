@@ -68,7 +68,7 @@ export default function SettingsPage() {
           {form.min_payment_type === "flat" && <Field label="Advance ₹"><input className="input" value={form.min_payment_value / 100} onChange={(e) => set("min_payment_value", Math.round((Number(e.target.value) || 0) * 100))} /></Field>}
           {text("invoice_prefix", "Invoice prefix")}
         </div>
-        <JsonList label="Charges" hint='e.g. [{"name":"Packaging","kind":"flat","value":2000,"taxable":true,"applies_to":"pickup"}] — value in paise (flat) or basis points (percent: 500 = 5%)'
+        <JsonList label="Charges" hint='e.g. [{"name":"Packaging","kind":"flat","value":2000,"taxable":true,"applies_to":"pickup"}] - value in paise (flat) or basis points (percent: 500 = 5%)'
           value={form.charges} onChange={(v) => set("charges", v)} />
         <JsonList label="Discounts" hint='e.g. [{"name":"10% off above ₹1,500","percent_bp":1000,"min_subtotal_paise":150000,"active":true}]' value={form.discounts} onChange={(v) => set("discounts", v)} />
       </Section>
@@ -80,7 +80,7 @@ export default function SettingsPage() {
           <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={form.languages.includes("hi-IN")} onChange={(e) => set("languages", e.target.checked ? ["en-IN", "hi-IN"] : ["en-IN"])} /> Offer Hindi (press 2 on calls)</label>
           {text("transfer_number", "Transfer calls to (+91…)")}
           <Field label="Staff WhatsApp alert numbers (comma-separated)"><input className="input" value={(form.staff_alert_numbers ?? []).join(", ")} onChange={(e) => set("staff_alert_numbers", e.target.value.split(",").map((x) => x.trim()).filter(Boolean))} /></Field>
-          <Field label="Greeting (English) — blank for default"><textarea className="input" rows={2} value={form.greeting_en} onChange={(e) => set("greeting_en", e.target.value)} /></Field>
+          <Field label="Greeting (English) - blank for default"><textarea className="input" rows={2} value={form.greeting_en} onChange={(e) => set("greeting_en", e.target.value)} /></Field>
           <Field label="Greeting (Hindi)"><textarea className="input" rows={2} value={form.greeting_hi} onChange={(e) => set("greeting_hi", e.target.value)} /></Field>
         </div>
         <Field label="Approved information the AI may share (parking, policies, FAQs…)" className="mt-3"><textarea className="input" rows={6} value={form.ai_knowledge} onChange={(e) => set("ai_knowledge", e.target.value)} /></Field>
@@ -146,7 +146,7 @@ function SpecialDays() {
         {!f.closed && <input className="input" placeholder="12:00-16:00" value={f.intervals} onChange={(e) => setF({ ...f, intervals: e.target.value })} />}
         <input className="input" placeholder="Note (e.g. Diwali)" value={f.note} onChange={(e) => setF({ ...f, note: e.target.value })} />
       </div>
-      <p className="mt-1 text-xs text-stone-500">Existing bookings on that day are not cancelled automatically — check the reservations list.</p>
+      <p className="mt-1 text-xs text-stone-500">Existing bookings on that day are not cancelled automatically - check the reservations list.</p>
       <div className="mt-2 flex gap-2"><button className="btn" disabled={!f.day || act.busy} onClick={async () => {
         if (await act.run(() => api("/api/special-days", { method: "PUT", body: { day: f.day, closed: f.closed, intervals: f.closed ? [] : textToHours(f.intervals), note: f.note } }))) { setF({ day: "", closed: true, intervals: "", note: "" }); days.reload(); }
       }}>Add</button><ErrorText error={act.error} /></div>

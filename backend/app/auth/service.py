@@ -55,7 +55,6 @@ def token_hash(token: str) -> str:
 
 def login(db: Session, email: str, password: str, ip: str | None) -> tuple[StaffUser, str]:
     user = db.scalar(select(StaffUser).where(StaffUser.email == email.strip().lower()))
-    # Hash even when the user is missing so response time doesn't reveal which emails exist.
     ok = verify_password(password, user.password_hash if user else hash_password("x" * 12))
     if not user or not ok or not user.active:
         raise DomainError("Wrong email or password.", "unauthorized", 401)

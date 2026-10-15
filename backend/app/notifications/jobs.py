@@ -62,7 +62,7 @@ def notify_reservation(db: Session, p: dict) -> None:
 def reminder(db: Session, p: dict) -> None:
     res = db.get(Reservation, p["id"])
     if not res or res.status != "confirmed" or int(res.starts_at.timestamp()) != p["starts_at"]:
-        return  # cancelled or moved since this reminder was scheduled
+        return
     r, c = get_restaurant(db), res.customer
     when = fmt_time(res.starts_at, db)
     send(db, c, kind="booking_reminder", dedupe_key=f"reminder:{res.id}:{p['starts_at']}:{p.get('offset', '')}",
@@ -83,7 +83,7 @@ def payment_link(db: Session, p: dict) -> None:
             return
         c = o.customer
         lines = [f"Your order {o.ref} at {r.name}:"] + [
-            f"• {l['quantity']} x {l['name']}{' (' + l['detail'] + ')' if l['detail'] else ''} — {rupees(l['total'])}" for l in o.bill["lines"]]
+            f"• {l['quantity']} x {l['name']}{' (' + l['detail'] + ')' if l['detail'] else ''} - {rupees(l['total'])}" for l in o.bill["lines"]]
         if o.discount_paise:
             lines.append(f"Discount ({o.bill['discount_name']}): -{rupees(o.discount_paise)}")
         lines += [f"{ch['name']}: {rupees(ch['amount'])}" for ch in o.bill["charges"]]
@@ -115,12 +115,11 @@ def payment_received(db: Session, p: dict) -> None:
     if pay.order_id:
         o = db.get(Order, pay.order_id)
         if o.status in ("draft", "cancelled", "refunded"):
-            return  # late payment: the refund message covers it
+            return
         send(db, o.customer, kind="order_update", dedupe_key=f"paid:{pay.id}",
              text=f"Payment of {rupees(pay.amount_paise)} received for order {o.ref}. ✅ The restaurant will confirm "
                   "your preparation time shortly.",
              template_params=[o.customer.name or "there", r.name, o.ref, "payment received"], ref=("order", o.ref))
-    # Deposits: the booking confirmation (with QR) is sent by the confirmed-reservation notification.
 
 
 @handler("notify.order")

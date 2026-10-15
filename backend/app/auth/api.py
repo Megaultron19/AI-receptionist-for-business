@@ -111,7 +111,7 @@ def update_staff(user_id: int, body: StaffPatch, db: Session = Depends(get_db),
     if "password" in changes:
         u.password_hash = service.hash_password(changes["password"])
     if changes.keys() & {"role", "active", "password"}:
-        service.revoke_all(db, u.id)  # force re-login with the new rights/credentials
+        service.revoke_all(db, u.id)
     audit(db, "staff.updated", "staff_user", u.id, actor=actor(user), fields=sorted(k for k in changes if k != "password"),
           password_reset="password" in changes)
     db.commit()

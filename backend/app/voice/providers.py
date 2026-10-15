@@ -10,7 +10,7 @@ from xml.sax.saxutils import escape, quoteattr
 
 from ..config import get_settings
 
-INDIAN_VOICE = "Polly.Aditi"  # Amazon Polly voice for Indian English and Hindi (both providers support it)
+INDIAN_VOICE = "Polly.Aditi"
 
 
 @dataclass
@@ -35,7 +35,6 @@ class Provider:
     def event(self, p: dict[str, str]) -> CallEvent:
         raise NotImplementedError
 
-    # ---- rendering ----
     def _say(self, text: str, lang: str) -> str:
         tag = "Say" if self.name == "twilio" else "Speak"
         voice = f" voice={quoteattr(INDIAN_VOICE)}" if lang in ("en-IN", "hi-IN") else ""
@@ -73,7 +72,6 @@ class Twilio(Provider):
     def ask(self, text, lang, action, hints=""):
         a = escape(action)
         hint = f" hints={quoteattr(hints)}" if hints else ""
-        # Speech or keypad; the caller can interrupt (barge in) while we're speaking.
         return self.xml(f'<Gather input="speech dtmf" numDigits="1" speechTimeout="auto" timeout="6" language={quoteattr(lang)}'
                         f'{hint} action="{a}" method="POST">{self._say(text, lang)}</Gather><Redirect method="POST">{a}</Redirect>')
 

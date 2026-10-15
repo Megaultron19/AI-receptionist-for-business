@@ -65,7 +65,7 @@ def sync(ref: str, db: Session = Depends(get_db), _: StaffUser = Depends(require
 
 @router.post("/webhooks/razorpay")
 async def razorpay_webhook(request: Request, db: Session = Depends(get_db)):
-    raw = await request.body()  # signature is over the exact raw bytes
+    raw = await request.body()
     if not razorpay.verify_webhook(raw, request.headers.get("X-Razorpay-Signature", "")):
         raise DomainError("Invalid signature", "bad_signature", 400)
     stored = service.store_webhook(db, raw, request.headers.get("X-Razorpay-Event-Id"))

@@ -16,7 +16,7 @@ combination_tables = Table(
 class DiningTable(Base):
     __tablename__ = "dining_tables"
     id: Mapped[int] = mapped_column(primary_key=True)
-    code: Mapped[str] = mapped_column(String(16), unique=True)  # "T1"
+    code: Mapped[str] = mapped_column(String(16), unique=True)
     name: Mapped[str] = mapped_column(String(60), default="")
     area: Mapped[str] = mapped_column(String(40), default="")
     capacity: Mapped[int] = mapped_column(Integer)
@@ -53,14 +53,14 @@ class TableBlock(Base):
 
 class TableAllocation(Base):
     """The single source of truth for who holds a table when. The exclusion constraint makes it
-    impossible — at the database level, across all channels and processes — for two active
+    impossible - at the database level, across all channels and processes - for two active
     allocations (reservations or blocks) to overlap on the same table."""
     __tablename__ = "table_allocations"
     id: Mapped[int] = mapped_column(primary_key=True)
     table_id: Mapped[int] = mapped_column(ForeignKey("dining_tables.id", ondelete="RESTRICT"), index=True)
     reservation_id: Mapped[int | None] = mapped_column(ForeignKey("reservations.id", ondelete="CASCADE"), index=True)
     block_id: Mapped[int | None] = mapped_column(ForeignKey("table_blocks.id", ondelete="CASCADE"), index=True)
-    period: Mapped[Range[datetime]] = mapped_column(TSTZRANGE)  # [start, end + buffer)
+    period: Mapped[Range[datetime]] = mapped_column(TSTZRANGE)
     active: Mapped[bool] = mapped_column(Boolean, default=True)
 
     __table_args__ = (

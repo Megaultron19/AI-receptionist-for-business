@@ -76,7 +76,6 @@ def report(db: Session, start, end) -> dict[str, Any]:
             "payments_received_paise": int(paid or 0), "refunded_paise": int(refunded or 0)}
 
 
-# ---------- customer data (privacy) ----------
 
 def export_customer(db: Session, c: Customer) -> dict[str, Any]:
     def rows(model, *cols):
@@ -117,7 +116,6 @@ def purge_old_data(db: Session) -> dict[str, int]:
     return {"transcripts": n1, "messages": n2, "webhook_payloads": n3, "jobs": n4}
 
 
-# ---------- configuration export/import ----------
 
 SECRETLESS_SKIP = {"id", "updated_at", "next_invoice_number"}
 

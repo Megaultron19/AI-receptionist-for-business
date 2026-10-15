@@ -1,8 +1,5 @@
-"""In-process sliding-window rate limiter.
-
-ponytail: per-process memory. Each installation runs a single API process by default, so this holds;
-move to a Postgres/Redis counter if you scale the API to several processes.
-"""
+"""In-process sliding-window rate limiter. Counters live in process memory, which is correct for the
+default single API process per installation; use a shared store if the API is scaled out."""
 import threading
 import time
 from collections import defaultdict, deque
