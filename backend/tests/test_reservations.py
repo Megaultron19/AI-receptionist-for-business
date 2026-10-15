@@ -241,3 +241,13 @@ def test_reminders_scheduled_and_cancelled(db, restaurant):
     db.commit()
     db.refresh(jobs["reservation.reminder"])
     assert jobs["reservation.reminder"].status == "cancelled"
+
+
+def test_timeline_shows_bookings_and_blocks(db, owner, restaurant):
+    day = future_day()
+    res = book(db, 4, at(day, "19:30"))
+    r = owner.post("/api/tables/blocks", json={"table_ids": [1], "starts_at": f"{day}T12:00", "ends_at": f"{day}T14:00", "reason": "Repair"})
+    assert r.status_code == 200, r.text
+    rows = {r["code"]: r["items"] for r in owner.get(f"/api/tables/timeline?day={day}").json()}
+    assert rows["T3"][0]["ref"] == res.ref and rows["T3"][0]["party"] == 4 and rows["T3"][0]["name"] == "Guest"
+    assert rows["T1"][0]["type"] == "block" and rows["T1"][0]["reason"] == "Repair"

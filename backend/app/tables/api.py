@@ -190,18 +190,16 @@ def timeline(day: date, db: Session = Depends(get_db), _: StaffUser = Depends(re
     r = get_restaurant(db)
     start, end = day_bounds(r, day)
     end += timedelta(hours=6)  # sittings that run past midnight
-    rows = db.execute(select(TableAllocation, Reservation, TableBlock)
-                      .outerjoin(Reservation, TableAllocation.reservation_id == Reservation.id)
-                      .outerjoin(TableBlock, TableAllocation.block_id == TableBlock.id)
-                      .where(TableAllocation.active, TableAllocation.period.overlaps(Range(start, end, bounds="[)"))))
+    window = TableAllocation.active, TableAllocation.period.overlaps(Range(start, end, bounds="[)"))
     items: dict[int, list] = {}
-    for a, res, blk in rows:
-        item = {"from": a.period.lower, "to": a.period.upper}
-        if res:
-            item |= {"type": "reservation", "ref": res.ref, "status": res.status, "party": res.party_size,
-                     "name": res.customer.name, "starts_at": res.starts_at, "ends_at": res.ends_at}
-        else:
-            item |= {"type": "block", "block_id": blk.id, "reason": blk.reason}
-        items.setdefault(a.table_id, []).append(item)
+    # Two inner joins rather than one outer join: Reservation.customer is eager-loaded with an inner
+    # join, which would silently drop block rows from an outer-joined query.
+    for a, res in db.execute(select(TableAllocation, Reservation).join(Reservation, TableAllocation.reservation_id == Reservation.id).where(*window)):
+        items.setdefault(a.table_id, []).append({
+            "from": a.period.lower, "to": a.period.upper, "type": "reservation", "ref": res.ref, "status": res.status,
+            "party": res.party_size, "name": res.customer.name, "starts_at": res.starts_at, "ends_at": res.ends_at})
+    for a, blk in db.execute(select(TableAllocation, TableBlock).join(TableBlock, TableAllocation.block_id == TableBlock.id).where(*window)):
+        items.setdefault(a.table_id, []).append({"from": a.period.lower, "to": a.period.upper, "type": "block",
+                                                 "block_id": blk.id, "reason": blk.reason})
     tables = db.scalars(select(DiningTable).where(DiningTable.active).order_by(DiningTable.sort, DiningTable.code))
     return [{**table_out(t), "items": sorted(items.get(t.id, []), key=lambda i: i["from"])} for t in tables]

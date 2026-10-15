@@ -109,3 +109,9 @@ def readyz(db: Session = Depends(get_db)):
     checks["worker"] = bool(beat and utcnow() - beat < timedelta(minutes=2))
     ok = all(checks.values())
     return JSONResponse({"ok": ok, "checks": checks}, status_code=200 if ok else 503)
+
+
+if settings.dashboard_dir:
+    from fastapi.staticfiles import StaticFiles
+    # Registered last so API, webhook and QR routes take precedence. Production uses Caddy instead.
+    app.mount("/", StaticFiles(directory=settings.dashboard_dir, html=True), name="dashboard")

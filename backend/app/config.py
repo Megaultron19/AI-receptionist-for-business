@@ -13,6 +13,7 @@ class Settings(BaseSettings):
     secret_key: str = ""  # signs nothing yet; required so sessions/csrf can rely on it later
     public_base_url: str = "http://localhost:8000"  # public https URL of the backend (webhooks, QR links)
     dashboard_url: str = "http://localhost:3000"
+    dashboard_dir: str = ""  # optional: serve the built dashboard (frontend/out) from this process
     cors_origins: str = ""  # comma-separated; empty = same-origin only (dashboard proxies /api)
     log_level: str = "INFO"
     sentry_dsn: str = ""
