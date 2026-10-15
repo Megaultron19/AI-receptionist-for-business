@@ -8,3 +8,5 @@ from .tables.models import DiningTable, TableAllocation, TableBlock, TableCombin
 from .menu.models import Addon, AddonGroup, ItemVariant, MenuCategory, MenuItem  # noqa: F401
 from .orders.models import Order, OrderItem  # noqa: F401
 from .payments.models import Payment, Refund  # noqa: F401
+from .conversations.models import Call, CallbackRequest, Conversation, Message, Notification  # noqa: F401
+from .qr.models import QrScan, QrToken  # noqa: F401

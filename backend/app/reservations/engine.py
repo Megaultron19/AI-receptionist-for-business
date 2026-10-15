@@ -310,7 +310,7 @@ def _after_status_change(db: Session, r: RestaurantSettings, res: Reservation, o
         for offset in r.reminder_offsets_minutes or []:
             run_at = res.starts_at - timedelta(minutes=offset)
             if run_at > utcnow():
-                enqueue(db, "reservation.reminder", {"id": res.id, "starts_at": ts}, run_at=run_at,
+                enqueue(db, "reservation.reminder", {"id": res.id, "starts_at": ts, "offset": offset}, run_at=run_at,
                         dedupe_key=f"reminder:res:{res.id}:{ts}:{offset}")
         enqueue(db, "reservation.no_show_check", {"id": res.id, "starts_at": ts},
                 run_at=res.starts_at + timedelta(minutes=r.no_show_grace_minutes), dedupe_key=f"noshow:res:{res.id}:{ts}")

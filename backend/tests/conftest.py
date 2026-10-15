@@ -179,3 +179,50 @@ def razorpay_webhook(client, event: str, payload: dict, event_id: str):
     sig = hmac.new(b"rzp_whsec", body, hashlib.sha256).hexdigest()
     return client.post("/webhooks/razorpay", content=body, headers={"X-Razorpay-Signature": sig, "X-Razorpay-Event-Id": event_id,
                                                                      "Content-Type": "application/json"})
+
+
+class FakeWhatsApp:
+    def __init__(self):
+        self.sent, self.fail_with = [], None
+
+    def _check(self):
+        if self.fail_with:
+            err, self.fail_with = self.fail_with, None
+            raise err
+
+    def send_text(self, to, body):
+        self._check()
+        self.sent.append(("text", to, body))
+        return f"wamid.{len(self.sent)}"
+
+    def upload_png(self, png):
+        assert png.startswith(b"\x89PNG")
+        return "media-1"
+
+    def send_image(self, to, media_id, caption):
+        self._check()
+        self.sent.append(("image", to, caption))
+        return f"wamid.{len(self.sent)}"
+
+    def send_template(self, to, name, language, params):
+        self._check()
+        self.sent.append(("template", to, name, params))
+        return f"wamid.{len(self.sent)}"
+
+    def bodies(self):
+        return [s[2] if s[0] != "template" else s[2] for s in self.sent]
+
+
+@pytest.fixture()
+def wa(monkeypatch):
+    from app.whatsapp import client
+    fake = FakeWhatsApp()
+    for name in ("send_text", "upload_png", "send_image", "send_template"):
+        monkeypatch.setattr(client, name, getattr(fake, name))
+    return fake
+
+
+def in_window(db, customer):
+    from app.db import utcnow
+    customer.last_inbound_whatsapp_at = utcnow()
+    db.commit()

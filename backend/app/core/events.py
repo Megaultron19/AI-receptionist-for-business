@@ -19,16 +19,24 @@ def audit(db: Session, action: str, entity: str, entity_id: Any = None, *, actor
                     request_id=request_id.get()))
 
 
+PAGE_STAFF = {"handoff", "callback", "new_order", "ai_unavailable", "complaint"}
+
+
 def alert(db: Session, kind: str, message: str, *, severity: str = "info", ref: tuple[str, Any] | None = None) -> Alert:
+    """Dashboard alert; important ones are also pushed to the staff WhatsApp numbers."""
+    from .jobs import enqueue  # local import: jobs imports this module
     a = Alert(kind=kind, message=message, severity=severity,
               ref_type=ref[0] if ref else None, ref_id=str(ref[1]) if ref else None)
     db.add(a)
+    db.flush()
     log.log(logging.WARNING if severity != "info" else logging.INFO, "alert %s: %s", kind, message)
+    if severity == "error" or kind in PAGE_STAFF:
+        enqueue(db, "notify.staff", {"alert_id": a.id, "message": message[:900]}, dedupe_key=f"staff-alert:{a.id}", max_attempts=3)
     return a
 
 
-def usage(db: Session, kind: str, quantity: int = 1, cost_paise: int = 0, **meta: Any) -> None:
-    db.add(UsageEvent(kind=kind, quantity=quantity, cost_paise=cost_paise, meta=meta))
+def usage(db: Session, metric: str, quantity: int = 1, cost_paise: int = 0, **meta: Any) -> None:
+    db.add(UsageEvent(kind=metric, quantity=quantity, cost_paise=cost_paise, meta=meta))
 
 
 def integration_result(name: str, ok: bool, error: str | None = None) -> None:
