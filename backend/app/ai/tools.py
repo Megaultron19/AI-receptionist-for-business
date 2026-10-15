@@ -17,6 +17,7 @@ from ..customers.service import record_opt_in
 from ..menu.matching import match_item, match_option
 from ..menu.models import MenuCategory, MenuItem
 from ..orders import service as orders
+from ..notifications.service import can_whatsapp
 from ..orders.billing import rupees
 from ..orders.models import Order
 from ..reservations import engine
@@ -347,7 +348,7 @@ def confirm_order(ctx: ToolContext, a: dict) -> dict:
     _set_outcome(ctx, "order")
     out = _order_out(ctx, o)
     if o.status == "awaiting_payment":
-        via = "WhatsApp" if not ctx.customer.whatsapp_unavailable else "SMS from Razorpay"
+        via = "WhatsApp" if can_whatsapp(ctx.db, ctx.customer, "payment_link") else "SMS from Razorpay"
         out["next_step"] = (f"A secure Razorpay payment link for {rupees(o.amount_due_paise)} is being sent by {via}. "
                             "The order goes to the kitchen only after the payment is verified, and the restaurant then "
                             "confirms the preparation time.")

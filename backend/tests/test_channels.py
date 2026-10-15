@@ -121,3 +121,15 @@ def test_whatsapp_ai_outage_hands_off(db, restaurant, wa, llm):
     assert "staff will reply" in wa.sent[-1][2]
     assert db.scalar(select(Conversation)).mode == "human"
     assert db.scalar(select(UsageEvent).where(UsageEvent.kind == "whatsapp_in"))
+
+
+def test_withheld_caller_ids_are_isolated(db, restaurant, llm):
+    c = TestClient(app)
+    a, b = CALL | {"CallUUID": "w-1", "From": "anonymous"}, CALL | {"CallUUID": "w-2", "From": "anonymous"}
+    plivo_post(c, "/voice/plivo/answer", a)
+    plivo_post(c, "/voice/plivo/answer", b)
+    phones = {cl.from_number for cl in db.scalars(select(Call))}
+    assert len(phones) == 2 and all(p.startswith("anon-") for p in phones)
+    bot = llm("I can help with questions; for bookings please call from your own number.")
+    plivo_post(c, "/voice/plivo/turn?n=0", a | {"Speech": "any bookings for me?"})
+    assert "caller ID withheld" in bot.last_system

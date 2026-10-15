@@ -76,6 +76,10 @@ def dynamic_prompt(db: Session, r: RestaurantSettings, convo, customer) -> str:
         iv = open_intervals(db, r, d)
         days.append(f"{d:%a %d %b}: " + (", ".join(f"{s:%H:%M}-{e:%H:%M}" for s, e in iv) if iv else "closed"))
     known = f"name {customer.name}" if customer.name else "name unknown (ask when booking)"
+    if customer.phone.startswith("anon-"):
+        return (f"Now: {now:%A %d %B %Y, %H:%M} ({r.timezone}).\nOpening hours, next 7 days:\n" + "\n".join(days) +
+                "\nCustomer: caller ID withheld. You can answer questions, but for bookings or orders ask them to call back "
+                "from their own number or offer request_callback.")
     consent = ("has agreed to WhatsApp messages" if customer.whatsapp_opt_in else
                "has NOT agreed to WhatsApp messages yet" + (" (not on WhatsApp)" if customer.whatsapp_unavailable else ""))
     window = " Customer messaged on WhatsApp in the last 24h." if in_service_window(customer) else ""
