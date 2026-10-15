@@ -23,6 +23,7 @@ from .menu.api import router as menu_router
 from .qr.api import router as qr_router
 from .orders.api import router as orders_router
 from .payments.api import router as payments_router
+from .reporting.api import router as reporting_router
 from .reservations.api import router as reservations_router
 from .restaurant.api import router as restaurant_router
 from .tables.api import router as tables_router
@@ -85,7 +86,7 @@ async def unhandled(request: Request, exc: Exception):
 
 
 for router in (auth_router, restaurant_router, tables_router, reservations_router, menu_router, orders_router, payments_router,
-               qr_router, conversations_router, voice_router, whatsapp_router):
+               qr_router, conversations_router, voice_router, whatsapp_router, reporting_router):
     app.include_router(router)
 
 

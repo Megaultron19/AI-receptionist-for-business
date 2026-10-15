@@ -1,0 +1,80 @@
+{
+  "version": 1,
+  "settings": {
+    "name": "Spice Route (Demo)",
+    "name_pronunciation": "Spice Route",
+    "legal_name": "Demo Foods Pvt Ltd",
+    "address": "12 MG Road, Indiranagar",
+    "city": "Bengaluru",
+    "state": "Karnataka",
+    "state_code": "29",
+    "pincode": "560038",
+    "phone": "+918000000000",
+    "timezone": "Asia/Kolkata",
+    "arrival_instructions": "Valet parking at the main gate. Please arrive 5 minutes early.",
+    "pickup_instructions": "Collect from the takeaway counter on the left of the entrance.",
+    "languages": ["en-IN", "hi-IN"],
+    "primary_language": "en-IN",
+    "ai_knowledge": "Pure-veg kitchen with a separate Jain menu on request. Kids' high chairs available. No outside food or cakes without prior notice. Wheelchair accessible ground floor.",
+    "opening_hours": {
+      "mon": [["12:00", "15:30"], ["19:00", "23:00"]],
+      "tue": [["12:00", "15:30"], ["19:00", "23:00"]],
+      "wed": [["12:00", "15:30"], ["19:00", "23:00"]],
+      "thu": [["12:00", "15:30"], ["19:00", "23:00"]],
+      "fri": [["12:00", "15:30"], ["19:00", "23:30"]],
+      "sat": [["12:00", "16:00"], ["19:00", "23:30"]],
+      "sun": [["12:00", "16:00"], ["19:00", "23:00"]]
+    },
+    "slot_interval_minutes": 15,
+    "default_duration_minutes": 90,
+    "duration_rules": [{"min_party": 7, "minutes": 120}],
+    "buffer_minutes": 15,
+    "min_notice_minutes": 30,
+    "max_advance_days": 30,
+    "min_party": 1,
+    "max_party": 12,
+    "deposit_per_guest_paise": 20000,
+    "deposit_min_party": 8,
+    "cancellation_cutoff_minutes": 120,
+    "cancellation_policy": "Free cancellation up to 2 hours before. Deposits for cancelled large-group bookings are refunded if cancelled 24 hours ahead.",
+    "reminder_offsets_minutes": [1440, 120],
+    "prep_target_minutes": 5,
+    "kitchen_parallel_orders": 4,
+    "max_active_orders": 25,
+    "min_payment_type": "full",
+    "min_payment_value": 0,
+    "default_tax_rate_bp": 500,
+    "prices_include_tax": false,
+    "charges": [{"name": "Packaging", "kind": "flat", "value": 2000, "taxable": true, "applies_to": "pickup"}],
+    "discounts": [{"name": "10% off above ₹1,500", "percent_bp": 1000, "min_subtotal_paise": 150000, "active": true}],
+    "invoice_prefix": "SR"
+  },
+  "special_days": [],
+  "tables": [
+    {"code": "T1", "name": "Window 1", "area": "Indoor", "capacity": 2, "min_capacity": 1, "active": true, "sort": 1},
+    {"code": "T2", "name": "Window 2", "area": "Indoor", "capacity": 2, "min_capacity": 1, "active": true, "sort": 2},
+    {"code": "T3", "name": "Booth", "area": "Indoor", "capacity": 4, "min_capacity": 2, "active": true, "sort": 3},
+    {"code": "T4", "name": "Family", "area": "Indoor", "capacity": 6, "min_capacity": 3, "active": true, "sort": 4},
+    {"code": "P1", "name": "Patio", "area": "Outdoor", "capacity": 4, "min_capacity": 2, "active": true, "sort": 5}
+  ],
+  "combinations": [{"name": "T1+T2", "capacity": 4, "min_capacity": 3, "active": true, "tables": ["T1", "T2"]},
+                   {"name": "T3+T4", "capacity": 10, "min_capacity": 7, "active": true, "tables": ["T3", "T4"]}],
+  "menu": [
+    {"name": "Starters", "name_hi": "स्टार्टर", "sort": 1, "active": true, "items": [
+      {"name": "Paneer Tikka", "name_hi": "पनीर टिक्का", "aliases": ["tikka"], "description": "Cottage cheese marinated in yoghurt and spices, grilled in the tandoor.", "price_paise": 28000, "image_url": "", "dietary": ["veg"], "allergens": "dairy", "spice_level": "medium", "available": true, "prep_minutes": 5, "tax_rate_bp": null, "sort": 1, "variants": [], "addon_groups": []},
+      {"name": "Hara Bhara Kabab", "name_hi": "हरा भरा कबाब", "aliases": ["veg kabab"], "description": "Spinach and green pea patties.", "price_paise": 22000, "image_url": "", "dietary": ["veg", "vegan"], "allergens": "", "spice_level": "mild", "available": true, "prep_minutes": 5, "tax_rate_bp": null, "sort": 2, "variants": [], "addon_groups": []}
+    ]},
+    {"name": "Mains", "name_hi": "मेन कोर्स", "sort": 2, "active": true, "items": [
+      {"name": "Paneer Butter Masala", "name_hi": "पनीर बटर मसाला", "aliases": ["PBM", "butter paneer"], "description": "Paneer in a rich tomato and butter gravy.", "price_paise": 0, "image_url": "", "dietary": ["veg"], "allergens": "dairy, cashew", "spice_level": "mild", "available": true, "prep_minutes": 12, "tax_rate_bp": null, "sort": 1,
+       "variants": [{"name": "Half", "price_paise": 22000, "available": true}, {"name": "Full", "price_paise": 38000, "available": true}], "addon_groups": []},
+      {"name": "Dal Makhani", "name_hi": "दाल मखनी", "aliases": ["dal"], "description": "Black lentils slow-cooked overnight.", "price_paise": 26000, "image_url": "", "dietary": ["veg"], "allergens": "dairy", "spice_level": "mild", "available": true, "prep_minutes": 8, "tax_rate_bp": null, "sort": 2, "variants": [], "addon_groups": []},
+      {"name": "Butter Naan", "name_hi": "बटर नान", "aliases": ["naan"], "description": "", "price_paise": 5000, "image_url": "", "dietary": ["veg"], "allergens": "gluten, dairy", "spice_level": "", "available": true, "prep_minutes": 4, "tax_rate_bp": null, "sort": 3, "variants": [], "addon_groups": []}
+    ]},
+    {"name": "Drinks", "name_hi": "पेय", "sort": 3, "active": true, "items": [
+      {"name": "Masala Chai", "name_hi": "मसाला चाय", "aliases": ["chai", "tea"], "description": "", "price_paise": 6000, "image_url": "", "dietary": ["veg"], "allergens": "dairy", "spice_level": "", "available": true, "prep_minutes": 3, "tax_rate_bp": null, "sort": 1, "variants": [],
+       "addon_groups": [{"name": "Sugar", "min_select": 1, "max_select": 1, "addons": [{"name": "Regular sugar", "price_paise": 0, "available": true}, {"name": "Less sugar", "price_paise": 0, "available": true}, {"name": "No sugar", "price_paise": 0, "available": true}]},
+                        {"name": "Extras", "min_select": 0, "max_select": 2, "addons": [{"name": "Extra ginger", "price_paise": 1000, "available": true}, {"name": "Elaichi", "price_paise": 1000, "available": true}]}]},
+      {"name": "Sweet Lassi", "name_hi": "मीठी लस्सी", "aliases": ["lassi"], "description": "", "price_paise": 9000, "image_url": "", "dietary": ["veg"], "allergens": "dairy", "spice_level": "", "available": true, "prep_minutes": 3, "tax_rate_bp": 1200, "sort": 2, "variants": [], "addon_groups": []}
+    ]}
+  ]
+}
