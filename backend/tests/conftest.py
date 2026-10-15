@@ -88,3 +88,94 @@ def make_client(db, role: str = "owner", email: str | None = None) -> TestClient
 @pytest.fixture()
 def owner(db):
     return make_client(db, "owner")
+
+
+@pytest.fixture()
+def menu(db, restaurant):
+    from app.menu.models import Addon, AddonGroup, ItemVariant, MenuCategory, MenuItem
+    # Orders are checked against "now", so keep the kitchen open around the clock for deterministic tests.
+    restaurant.opening_hours = {d: [["00:00", "23:59"], ["23:59", "00:00"]] for d in restaurant.opening_hours}
+    starters, mains, drinks = MenuCategory(name="Starters"), MenuCategory(name="Mains"), MenuCategory(name="Drinks")
+    db.add_all([starters, mains, drinks])
+    db.flush()
+    items = {
+        "tikka": MenuItem(category_id=starters.id, name="Paneer Tikka", name_hi="पनीर टिक्का", price_paise=28000, prep_minutes=5, dietary=["veg"]),
+        "pbm": MenuItem(category_id=mains.id, name="Paneer Butter Masala", aliases=["PBM"], prep_minutes=12, dietary=["veg"],
+                        variants=[ItemVariant(name="Half", price_paise=22000), ItemVariant(name="Full", price_paise=38000, sort=1)]),
+        "naan": MenuItem(category_id=mains.id, name="Butter Naan", price_paise=5000, prep_minutes=4),
+        "chai": MenuItem(category_id=drinks.id, name="Masala Chai", aliases=["chai", "tea"], price_paise=6000, prep_minutes=3,
+                         addon_groups=[AddonGroup(name="Sugar", min_select=1, max_select=1, addons=[
+                             Addon(name="Regular sugar"), Addon(name="Less sugar", sort=1), Addon(name="No sugar", sort=2)]),
+                             AddonGroup(name="Extras", min_select=0, max_select=2, sort=1, addons=[
+                                 Addon(name="Extra ginger", price_paise=1000), Addon(name="Elaichi", price_paise=1000, sort=1)])]),
+        "lassi": MenuItem(category_id=drinks.id, name="Sweet Lassi", price_paise=9000, prep_minutes=3, available=False),
+    }
+    db.add_all(items.values())
+    db.commit()
+    return items
+
+
+class FakeRazorpay:
+    """In-memory stand-in for the Razorpay API used by app.payments.razorpay."""
+
+    def __init__(self):
+        self.links, self.refunds, self.calls, self.fail_next = {}, {}, [], 0
+
+    def _maybe_fail(self):
+        from app.payments.razorpay import RazorpayError
+        if self.fail_next:
+            self.fail_next -= 1
+            raise RazorpayError("503: upstream unavailable", 503, True)
+
+    def create_payment_link(self, **kw):
+        self._maybe_fail()
+        self.calls.append(("create", kw["reference_id"]))
+        lid = f"plink_{len(self.links) + 1}"
+        self.links[lid] = {"id": lid, "short_url": f"https://rzp.io/i/{lid}", "status": "created", "amount": kw["amount_paise"],
+                           "amount_paid": 0, "reference_id": kw["reference_id"], "payments": [], "notes": kw["notes"]}
+        return dict(self.links[lid])
+
+    def fetch_payment_link(self, lid):
+        self._maybe_fail()
+        return dict(self.links[lid])
+
+    def find_payment_link(self, ref):
+        return next((dict(l) for l in self.links.values() if l["reference_id"] == ref), None)
+
+    def cancel_payment_link(self, lid):
+        if self.links[lid]["status"] != "created":
+            from app.payments.razorpay import RazorpayError
+            raise RazorpayError("400: link not cancellable", 400)
+        self.links[lid]["status"] = "cancelled"
+        return dict(self.links[lid])
+
+    def create_refund(self, payment_id, amount, receipt, notes):
+        rid = f"rfnd_{len(self.refunds) + 1}"
+        self.refunds[rid] = {"id": rid, "payment_id": payment_id, "amount": amount, "receipt": receipt, "status": "pending"}
+        return dict(self.refunds[rid])
+
+    def list_refunds(self, payment_id):
+        return [dict(r) for r in self.refunds.values() if r["payment_id"] == payment_id]
+
+    # Simulate the customer paying on Razorpay's page.
+    def pay(self, lid, amount=None):
+        l = self.links[lid]
+        l["status"], l["amount_paid"] = "paid", amount if amount is not None else l["amount"]
+        l["payments"] = [{"payment_id": f"pay_{lid}", "status": "captured", "amount": l["amount_paid"]}]
+
+
+@pytest.fixture()
+def rzp(monkeypatch):
+    from app.payments import razorpay
+    fake = FakeRazorpay()
+    for name in ("create_payment_link", "fetch_payment_link", "find_payment_link", "cancel_payment_link", "create_refund", "list_refunds"):
+        monkeypatch.setattr(razorpay, name, getattr(fake, name))
+    return fake
+
+
+def razorpay_webhook(client, event: str, payload: dict, event_id: str):
+    import hashlib, hmac, json
+    body = json.dumps({"event": event, "payload": payload}).encode()
+    sig = hmac.new(b"rzp_whsec", body, hashlib.sha256).hexdigest()
+    return client.post("/webhooks/razorpay", content=body, headers={"X-Razorpay-Signature": sig, "X-Razorpay-Event-Id": event_id,
+                                                                     "Content-Type": "application/json"})

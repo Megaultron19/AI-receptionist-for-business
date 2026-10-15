@@ -1,2 +1,4 @@
 """Import every module that registers job handlers, so the worker (and tests) see all of them."""
 from .reservations import jobs as _reservation_jobs  # noqa: F401
+from .orders import jobs as _order_jobs  # noqa: F401
+from .payments import jobs as _payment_jobs  # noqa: F401

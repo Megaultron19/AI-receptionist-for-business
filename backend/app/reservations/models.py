@@ -35,7 +35,7 @@ class Reservation(Base):
     cancelled_at: Mapped[datetime | None]
     cancel_reason: Mapped[str] = mapped_column(String(200), default="")
 
-    customer: Mapped[Customer] = relationship(lazy="joined")
+    customer: Mapped[Customer] = relationship(lazy="joined", innerjoin=True)
     allocations: Mapped[list[TableAllocation]] = relationship(lazy="selectin")
 
 
@@ -53,6 +53,6 @@ class WaitlistEntry(Base):
     notes: Mapped[str] = mapped_column(Text, default="")
     created_at: Mapped[datetime] = mapped_column(default=utcnow)
 
-    customer: Mapped[Customer] = relationship(lazy="joined")
+    customer: Mapped[Customer] = relationship(lazy="joined", innerjoin=True)
 
     __table_args__ = (Index("ix_waitlist_day_status", "day", "status"),)

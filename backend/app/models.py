@@ -5,3 +5,6 @@ from .customers.models import Customer  # noqa: F401
 from .reservations.models import Reservation, WaitlistEntry  # noqa: F401
 from .restaurant.models import RestaurantSettings, SpecialDay  # noqa: F401
 from .tables.models import DiningTable, TableAllocation, TableBlock, TableCombination  # noqa: F401
+from .menu.models import Addon, AddonGroup, ItemVariant, MenuCategory, MenuItem  # noqa: F401
+from .orders.models import Order, OrderItem  # noqa: F401
+from .payments.models import Payment, Refund  # noqa: F401

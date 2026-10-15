@@ -18,6 +18,9 @@ from .core.errors import DomainError
 from .core.logging import request_id, setup_logging
 from .core.models import WorkerHeartbeat
 from .db import get_db, utcnow
+from .menu.api import router as menu_router
+from .orders.api import router as orders_router
+from .payments.api import router as payments_router
 from .reservations.api import router as reservations_router
 from .restaurant.api import router as restaurant_router
 from .tables.api import router as tables_router
@@ -77,7 +80,7 @@ async def unhandled(request: Request, exc: Exception):
     return JSONResponse({"error": "server_error", "detail": "Something went wrong. It has been logged."}, status_code=500)
 
 
-for router in (auth_router, restaurant_router, tables_router, reservations_router):
+for router in (auth_router, restaurant_router, tables_router, reservations_router, menu_router, orders_router, payments_router):
     app.include_router(router)
 
 
