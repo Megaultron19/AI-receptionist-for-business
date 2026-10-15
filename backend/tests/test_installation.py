@@ -35,3 +35,15 @@ def test_env_template_lists_every_setting():
     keys = {line.split("=")[0].strip().lstrip("# ") for line in open(path) if "=" in line}
     missing = {f.upper() for f in Settings.model_fields} - keys
     assert not missing, f".env.example is missing {sorted(missing)}"
+
+
+def test_every_periodic_job_runs_cleanly(db, restaurant, rzp):
+    from sqlalchemy import select
+    from app import registry  # noqa: F401
+    from app.core.jobs import PERIODIC, drain, schedule_periodic
+    from app.core.models import Job
+    schedule_periodic()
+    drain()
+    jobs = db.scalars(select(Job)).all()
+    assert {j.kind for j in jobs} == set(PERIODIC)
+    assert all(j.status == "done" for j in jobs), [(j.kind, j.last_error) for j in jobs]

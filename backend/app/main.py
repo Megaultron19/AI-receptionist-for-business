@@ -14,6 +14,7 @@ from . import models  # noqa: F401  (registers all tables)
 from . import registry  # noqa: F401  (registers job handlers)
 from .auth.api import router as auth_router
 from .config import get_settings
+from .core import ratelimit
 from .core.errors import DomainError
 from .core.logging import request_id, setup_logging
 from .core.models import WorkerHeartbeat
@@ -55,6 +56,18 @@ if settings.cors_origins:
 
 
 @app.middleware("http")
+async def rate_limit(request: Request, call_next):
+    """Coarse per-IP limit on the staff API (login has its own stricter limit)."""
+    if request.url.path.startswith("/api/"):
+        ip = request.client.host if request.client else "?"
+        try:
+            ratelimit.check(f"api:{ip}", 600, 60)
+        except DomainError as e:
+            return JSONResponse({"error": e.code, "detail": e.message}, status_code=e.status)
+    return await call_next(request)
+
+
+@app.middleware("http")
 async def correlation_id(request: Request, call_next):
     rid = request.headers.get("X-Request-ID") or uuid.uuid4().hex[:16]
     token = request_id.set(rid[:64])
@@ -65,6 +78,9 @@ async def correlation_id(request: Request, call_next):
     response.headers["X-Request-ID"] = rid
     response.headers["X-Content-Type-Options"] = "nosniff"
     response.headers["Referrer-Policy"] = "same-origin"
+    response.headers.setdefault("X-Frame-Options", "DENY")
+    if request.url.path.startswith(("/api/", "/webhooks/", "/voice/")):
+        response.headers.setdefault("Cache-Control", "no-store")
     return response
 
 

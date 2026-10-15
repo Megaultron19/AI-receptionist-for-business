@@ -50,3 +50,26 @@ def test_usage_health_reports_audit_and_privacy(db, owner, restaurant, wa):
     assert c.name == "" and not c.phone.startswith("+91") and c.anonymized_at
     manager = make_client(db, "manager")
     assert manager.get(f"/api/customers/{c.id}/export").status_code == 403  # owner only
+
+
+def test_retention_purge(db, restaurant):
+    from datetime import timedelta
+    from app.conversations.models import Conversation, Message
+    from app.core.models import Job, WebhookEvent
+    from app.db import utcnow
+    from app.reporting.service import purge_old_data
+    c = get_or_create(db, "9876500001", "Old")
+    old = utcnow() - timedelta(days=restaurant.transcript_retention_days + 1)
+    convo = Conversation(channel="whatsapp", customer_id=c.id, external_id=c.phone, transcript=[{"role": "user", "content": "hi"}], last_message_at=old)
+    fresh = Conversation(channel="whatsapp", customer_id=c.id, external_id="x", transcript=[{"role": "user", "content": "new"}])
+    db.add_all([convo, fresh])
+    db.flush()
+    db.add(Message(conversation_id=convo.id, customer_id=c.id, direction="in", sender="customer", body="my address is …", created_at=old))
+    db.add(WebhookEvent(provider="razorpay", event_id="e1", event_type="x", payload={"a": 1}, received_at=utcnow() - timedelta(days=91)))
+    db.add(Job(kind="x", status="done", finished_at=utcnow() - timedelta(days=31)))
+    db.commit()
+    assert purge_old_data(db) == {"transcripts": 1, "messages": 1, "webhook_payloads": 1, "jobs": 1}
+    db.commit()
+    db.refresh(convo), db.refresh(fresh)
+    assert convo.transcript == [] and fresh.transcript != []
+    assert purge_old_data(db) == {"transcripts": 0, "messages": 0, "webhook_payloads": 0, "jobs": 0}  # idempotent

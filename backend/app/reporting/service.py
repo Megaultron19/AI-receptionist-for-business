@@ -2,11 +2,11 @@
 from datetime import timedelta
 from typing import Any
 
-from sqlalchemy import func, select, update
+from sqlalchemy import Text, cast, func, select, update
 from sqlalchemy.orm import Session
 
 from ..config import get_settings
-from ..conversations.models import Conversation, Message, Notification
+from ..conversations.models import Conversation, Message
 from ..core.errors import DomainError
 from ..core.models import IntegrationStatus, Job, UsageEvent, WebhookEvent, WorkerHeartbeat
 from ..customers.models import Customer
@@ -108,13 +108,12 @@ def anonymize_customer(db: Session, c: Customer) -> None:
 def purge_old_data(db: Session) -> dict[str, int]:
     r = get_restaurant(db)
     cutoff = utcnow() - timedelta(days=r.transcript_retention_days)
-    n1 = db.execute(update(Conversation).where(Conversation.last_message_at < cutoff, Conversation.transcript != [])
+    n1 = db.execute(update(Conversation).where(Conversation.last_message_at < cutoff, func.json_array_length(Conversation.transcript) > 0)
                     .values(transcript=[], state={})).rowcount
     n2 = db.execute(update(Message).where(Message.created_at < cutoff, Message.body != "[expired]").values(body="[expired]")).rowcount
-    n3 = db.execute(update(WebhookEvent).where(WebhookEvent.received_at < utcnow() - timedelta(days=90), WebhookEvent.payload != {})
+    n3 = db.execute(update(WebhookEvent).where(WebhookEvent.received_at < utcnow() - timedelta(days=90), cast(WebhookEvent.payload, Text) != "{}")
                     .values(payload={})).rowcount
     n4 = db.execute(Job.__table__.delete().where(Job.status.in_(("done", "cancelled")), Job.finished_at < utcnow() - timedelta(days=30))).rowcount
-    db.execute(Notification.__table__.update().where(Notification.created_at < cutoff).values(error=""))
     return {"transcripts": n1, "messages": n2, "webhook_payloads": n3, "jobs": n4}
 
 

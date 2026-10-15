@@ -1,0 +1,61 @@
+# One Compose project per restaurant:
+#   cp .env.example .env   (fill it in)
+#   docker compose -p <restaurant-slug> up -d --build
+# Each project gets its own database volume, containers, credentials and logs.
+name: ${COMPOSE_PROJECT_NAME:-restaurant}
+
+x-app: &app
+  build: { context: ., dockerfile: deploy/api.Dockerfile }
+  image: restaurant-receptionist-api:${APP_VERSION:-latest}
+  env_file: .env
+  environment:
+    DATABASE_URL: postgresql+psycopg://resto:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}@db:5432/resto
+  restart: unless-stopped
+  logging: { driver: json-file, options: { max-size: "20m", max-file: "5" } }
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: resto
+      POSTGRES_DB: resto
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+    volumes: [pgdata:/var/lib/postgresql/data]
+    healthcheck: { test: ["CMD-SHELL", "pg_isready -U resto"], interval: 5s, retries: 20 }
+    restart: unless-stopped
+    logging: { driver: json-file, options: { max-size: "20m", max-file: "5" } }
+
+  migrate:
+    <<: *app
+    command: ["alembic", "upgrade", "head"]
+    restart: "no"
+    depends_on: { db: { condition: service_healthy } }
+
+  api:
+    <<: *app
+    depends_on:
+      db: { condition: service_healthy }
+      migrate: { condition: service_completed_successfully }
+
+  worker:
+    <<: *app
+    command: ["python", "-m", "app.cli", "worker"]
+    healthcheck: { disable: true }
+    depends_on:
+      db: { condition: service_healthy }
+      migrate: { condition: service_completed_successfully }
+
+  web:
+    build: { context: ., dockerfile: deploy/web.Dockerfile }
+    image: restaurant-receptionist-web:${APP_VERSION:-latest}
+    environment: { DOMAIN: "${DOMAIN:?set DOMAIN in .env}" }
+    ports: ["80:80", "443:443"]
+    volumes: [caddy_data:/data, caddy_config:/config]
+    depends_on: [api]
+    restart: unless-stopped
+    logging: { driver: json-file, options: { max-size: "20m", max-file: "5" } }
+
+volumes:
+  pgdata:
+  caddy_data:
+  caddy_config:

@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+# Restore a backup into this installation's database. DESTROYS the current data.
+#   ./deploy/restore.sh backups/resto-20261016-030000.dump
+set -euo pipefail
+cd "$(dirname "$0")/.."
+dump=${1:?usage: deploy/restore.sh <backup.dump>}
+read -r -p "This replaces ALL data of project '$(docker compose config --format json | python3 -c 'import json,sys; print(json.load(sys.stdin)["name"])')' with $dump. Type RESTORE to continue: " ok
+[ "$ok" = "RESTORE" ] || { echo "aborted"; exit 1; }
+docker compose stop api worker
+docker compose exec -T db psql -U resto -d postgres -c "DROP DATABASE IF EXISTS resto WITH (FORCE);" -c "CREATE DATABASE resto OWNER resto;"
+docker compose exec -T db pg_restore -U resto -d resto --no-owner < "$dump"
+docker compose run --rm migrate   # bring an older backup up to the current schema
+docker compose start api worker
+echo "restored $dump"

@@ -1,0 +1,30 @@
+# One site per restaurant installation. DOMAIN comes from .env; Caddy obtains the HTTPS certificate.
+{$DOMAIN} {
+	encode zstd gzip
+
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		Referrer-Policy "same-origin"
+		Permissions-Policy "camera=(self), microphone=(), geolocation=()"
+		-Server
+	}
+
+	@backend path /api/* /q/* /webhooks/* /voice/* /healthz /readyz
+	handle @backend {
+		reverse_proxy api:8000
+	}
+
+	handle {
+		header Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; connect-src 'self'; frame-ancestors 'none'"
+		root * /srv
+		try_files {path} {path}/index.html /index.html
+		file_server
+	}
+
+	log {
+		output stdout
+		format json
+	}
+}

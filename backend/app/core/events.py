@@ -29,7 +29,8 @@ def alert(db: Session, kind: str, message: str, *, severity: str = "info", ref: 
               ref_type=ref[0] if ref else None, ref_id=str(ref[1]) if ref else None)
     db.add(a)
     db.flush()
-    log.log(logging.WARNING if severity != "info" else logging.INFO, "alert %s: %s", kind, message)
+    log.log(logging.WARNING if severity != "info" else logging.INFO, "alert %s #%s ref=%s:%s", kind, a.id,
+            a.ref_type, a.ref_id)  # message text stays in the DB: it can contain customer details
     if severity == "error" or kind in PAGE_STAFF:
         enqueue(db, "notify.staff", {"alert_id": a.id, "message": message[:900]}, dedupe_key=f"staff-alert:{a.id}", max_attempts=3)
     return a
