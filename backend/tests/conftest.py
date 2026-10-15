@@ -23,17 +23,21 @@ IST = ZoneInfo("Asia/Kolkata")
 
 @pytest.fixture(scope="session", autouse=True)
 def schema():
+    """Build the test database with the real migrations, exactly as an installation would."""
+    from alembic import command
+    from alembic.config import Config
     with engine.begin() as conn:
         conn.execute(text("DROP SCHEMA public CASCADE; CREATE SCHEMA public;"))
-        conn.execute(text("CREATE EXTENSION IF NOT EXISTS btree_gist"))
-    Base.metadata.create_all(engine)
+    cfg = Config(os.path.join(os.path.dirname(__file__), "..", "alembic.ini"))
+    cfg.set_main_option("script_location", os.path.join(os.path.dirname(__file__), "..", "migrations"))
+    command.upgrade(cfg, "head")
     yield
 
 
 @pytest.fixture(autouse=True)
 def clean():
     with engine.begin() as conn:
-        names = ", ".join(f'"{t.name}"' for t in Base.metadata.sorted_tables)
+        names = ", ".join(f'"{t.name}"' for t in Base.metadata.sorted_tables)  # alembic_version is kept
         conn.execute(text(f"TRUNCATE {names} RESTART IDENTITY CASCADE"))
     ratelimit.reset()
     yield
@@ -128,6 +132,7 @@ class FakeRazorpay:
             raise RazorpayError("503: upstream unavailable", 503, True)
 
     def create_payment_link(self, **kw):
+        self.last_create = kw
         self._maybe_fail()
         self.calls.append(("create", kw["reference_id"]))
         lid = f"plink_{len(self.links) + 1}"
@@ -226,3 +231,75 @@ def in_window(db, customer):
     from app.db import utcnow
     customer.last_inbound_whatsapp_at = utcnow()
     db.commit()
+
+
+class ScriptedLLM:
+    """Deterministic stand-in for an LLM provider. Each script step is either a list of (tool, args)
+    calls or a final text (callable steps receive the last tool results and return either)."""
+    name = "scripted"
+
+    def __init__(self, *steps):
+        self.steps, self.tool_results, self.calls, self.fail = list(steps), [], 0, False
+
+    def add_user(self, transcript, text):
+        return [*transcript, {"role": "user", "content": text}]
+
+    def add_tool_results(self, transcript, results):
+        self.tool_results.append(results)
+        return [*transcript, {"role": "user", "content": [{"type": "tool_result", "tool_use_id": c, "content": r, "is_error": e}
+                                                          for c, r, e in results]}]
+
+    def complete(self, *, system_stable, system_dynamic, transcript, tools, timeout, max_retries):
+        from app.ai.llm import LLMError, ToolCall, Turn
+        self.calls += 1
+        self.last_system = system_stable + system_dynamic
+        self.last_tools = [t.name for t in tools]
+        if self.fail:
+            raise LLMError("timeout")
+        step = self.steps.pop(0)
+        if callable(step):
+            step = step(self.tool_results[-1] if self.tool_results else [])
+        if isinstance(step, str):
+            return [*transcript, {"role": "assistant", "content": [{"type": "text", "text": step}]}], Turn(step, [], "end", 100, 20, "scripted")
+        calls = [ToolCall(f"t{self.calls}_{i}", n, a) for i, (n, a) in enumerate(step)]
+        return ([*transcript, {"role": "assistant", "content": [{"type": "tool_use", "id": c.id, "name": c.name, "input": c.input} for c in calls]}],
+                Turn("", calls, "tool_use", 100, 20, "scripted"))
+
+
+@pytest.fixture()
+def llm(monkeypatch):
+    from app.ai import agent
+    holder = {"provider": ScriptedLLM()}
+    monkeypatch.setattr(agent, "get_provider", lambda: holder["provider"])
+
+    def script(*steps):
+        holder["provider"] = ScriptedLLM(*steps)
+        return holder["provider"]
+    return script
+
+
+def wa_inbound(client, text, msg_id, phone="919876500001", name="Asha", mtype="text"):
+    import hashlib, hmac, json, time as _t
+    msg = {"from": phone, "id": msg_id, "timestamp": str(int(_t.time())), "type": mtype}
+    if mtype == "text":
+        msg["text"] = {"body": text}
+    body = json.dumps({"entry": [{"changes": [{"value": {"metadata": {"phone_number_id": "1111"},
+                                                         "contacts": [{"wa_id": phone, "profile": {"name": name}}],
+                                                         "messages": [msg]}}]}]}).encode()
+    sig = "sha256=" + hmac.new(b"meta_secret", body, hashlib.sha256).hexdigest()
+    return client.post("/webhooks/whatsapp", content=body, headers={"X-Hub-Signature-256": sig, "Content-Type": "application/json"})
+
+
+def plivo_post(client, path, params):
+    from app.voice.providers import plivo_signature
+    url = "https://resto.example" + path
+    sig = plivo_signature("plivo_tok", url, params, "nonce1")
+    return client.post(path, data=params, headers={"X-Plivo-Signature-V3": sig, "X-Plivo-Signature-V3-Nonce": "nonce1"})
+
+
+def twilio_post(client, path, params):
+    import base64, hashlib, hmac
+    url = "https://resto.example" + path
+    payload = url + "".join(k + params[k] for k in sorted(params))
+    sig = base64.b64encode(hmac.new(b"twilio_tok", payload.encode(), hashlib.sha1).digest()).decode()
+    return client.post(path, data=params, headers={"X-Twilio-Signature": sig})

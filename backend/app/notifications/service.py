@@ -27,6 +27,13 @@ def fmt_time(dt: datetime, db: Session) -> str:
     return dt.astimezone(tz(get_restaurant(db))).strftime("%a %d %b, %I:%M %p").replace(" 0", " ")
 
 
+def can_whatsapp(db: Session, customer: Customer, kind: str) -> bool:
+    """Whether a notification of this kind would actually be delivered on WhatsApp right now."""
+    if customer.anonymized_at or customer.whatsapp_unavailable or not wa.configured():
+        return False
+    return in_service_window(customer) or (customer.whatsapp_opt_in and bool((get_restaurant(db).whatsapp_templates or {}).get(kind)))
+
+
 def send(db: Session, customer: Customer, *, kind: str, dedupe_key: str, text: str, template_params: list[str],
          ref: tuple[str, str] = ("", ""), qr_png: bytes | None = None) -> Notification:
     db.execute(insert(Notification).values(dedupe_key=dedupe_key, kind=kind, customer_id=customer.id, channel="whatsapp",

@@ -29,6 +29,7 @@ from ..reservations import engine as reservations
 from ..reservations.engine import new_ref
 from ..reservations.models import Reservation
 from ..restaurant.service import get_restaurant
+from ..notifications.service import can_whatsapp
 from . import razorpay
 from .models import Payment, Refund
 
@@ -43,14 +44,15 @@ def _ts(dt: datetime) -> int:
     return int(dt.timestamp())
 
 
-def _ensure_link(db: Session, p: Payment, *, description: str, name: str, contact: str) -> Payment:
+def _ensure_link(db: Session, p: Payment, *, description: str, customer) -> Payment:
     """Create the Razorpay link for a 'creating' payment, or adopt one a previous attempt already made."""
     db.commit()  # the payment row (and its reference) must exist before we talk to Razorpay
     link = razorpay.find_payment_link(p.ref)
     if not link:
         link = razorpay.create_payment_link(amount_paise=p.amount_paise, reference_id=p.ref, description=description,
-                                            customer_name=name, contact=contact, expire_by=_ts(p.expires_at),
-                                            notes={"payment_ref": p.ref, "purpose": p.purpose})
+                                            customer_name=customer.name, contact=customer.phone, expire_by=_ts(p.expires_at),
+                                            notes={"payment_ref": p.ref, "purpose": p.purpose},
+                                            sms=not can_whatsapp(db, customer, "payment_link"))
     if link.get("amount") != p.amount_paise:
         raise razorpay.RazorpayError(f"link {link.get('id')} amount {link.get('amount')} != expected {p.amount_paise}")
     p.provider_link_id, p.short_url, p.status = link["id"], link.get("short_url", ""), "created"
@@ -73,7 +75,7 @@ def create_order_link(db: Session, order_id: int) -> Payment | None:
         db.flush()
     r = get_restaurant(db)
     part = "" if o.amount_due_paise == o.total_paise else f" (advance of {rupees(o.amount_due_paise)} on {rupees(o.total_paise)})"
-    _ensure_link(db, p, description=f"{r.name} order {o.ref}{part}", name=o.customer.name, contact=o.customer.phone)
+    _ensure_link(db, p, description=f"{r.name} order {o.ref}{part}", customer=o.customer)
     enqueue(db, "notify.payment_link", {"payment_id": p.id}, dedupe_key=f"notify:paylink:{p.id}")
     return p
 
@@ -95,7 +97,7 @@ def create_deposit_link(db: Session, reservation_id: int) -> Payment | None:
         db.add(p)
         db.flush()
     r = get_restaurant(db)
-    _ensure_link(db, p, description=f"{r.name} table deposit, booking {res.ref}", name=res.customer.name, contact=res.customer.phone)
+    _ensure_link(db, p, description=f"{r.name} table deposit, booking {res.ref}", customer=res.customer)
     enqueue(db, "notify.payment_link", {"payment_id": p.id}, dedupe_key=f"notify:paylink:{p.id}")
     return p
 

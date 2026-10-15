@@ -52,12 +52,12 @@ def request(method: str, path: str, json: dict | None = None, params: dict | Non
 
 
 def create_payment_link(*, amount_paise: int, reference_id: str, description: str, customer_name: str, contact: str,
-                        expire_by: int, notes: dict[str, str]) -> dict[str, Any]:
+                        expire_by: int, notes: dict[str, str], sms: bool = False) -> dict[str, Any]:
     return request("POST", "/payment_links", json={
         "amount": amount_paise, "currency": "INR", "accept_partial": False, "reference_id": reference_id,
         "description": description[:2048], "customer": {"name": customer_name[:100] or "Guest", "contact": contact},
-        # We deliver the link ourselves over WhatsApp; Razorpay SMS/email off to avoid duplicate messages.
-        "notify": {"sms": False, "email": False}, "reminder_enable": False, "expire_by": expire_by, "notes": notes,
+        # We deliver the link on WhatsApp; Razorpay's own SMS is the fallback for customers we can't reach there.
+        "notify": {"sms": sms, "email": False}, "reminder_enable": False, "expire_by": expire_by, "notes": notes,
     })
 
 

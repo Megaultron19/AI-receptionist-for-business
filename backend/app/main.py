@@ -26,6 +26,8 @@ from .payments.api import router as payments_router
 from .reservations.api import router as reservations_router
 from .restaurant.api import router as restaurant_router
 from .tables.api import router as tables_router
+from .voice.api import router as voice_router
+from .whatsapp.api import router as whatsapp_router
 
 settings = get_settings()
 setup_logging(settings.log_level)
@@ -83,7 +85,7 @@ async def unhandled(request: Request, exc: Exception):
 
 
 for router in (auth_router, restaurant_router, tables_router, reservations_router, menu_router, orders_router, payments_router,
-               qr_router, conversations_router):
+               qr_router, conversations_router, voice_router, whatsapp_router):
     app.include_router(router)
 
 
