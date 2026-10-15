@@ -1,5 +1,7 @@
 """Provider-independent call flow: greeting, language choice, AI turns, silence/recognition failures,
 transfer, callback and call logging."""
+import secrets
+
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -8,6 +10,8 @@ from ..config import get_settings
 from ..conversations import service as convo_service
 from ..conversations.models import Call, Conversation, Message
 from ..core.events import audit, usage
+from ..core.errors import DomainError
+from ..customers.models import Customer
 from ..customers.service import get_or_create
 from ..db import utcnow
 from ..restaurant.service import get_restaurant
@@ -50,8 +54,12 @@ def incoming(db: Session, provider: Provider, ev: CallEvent) -> str:
     if call is None:
         try:
             customer = get_or_create(db, ev.from_number)
-        except Exception:  # noqa: BLE001 - withheld / malformed caller id
-            customer = get_or_create(db, "+910000000000", "Unknown caller")
+        except DomainError:
+            # Withheld/invalid caller ID: a private placeholder per call, so anonymous callers never
+            # share (or see) each other's bookings. Messages to it fail and staff are alerted instead.
+            customer = Customer(phone=f"anon-{secrets.token_hex(6)}", name="", whatsapp_unavailable=True)
+            db.add(customer)
+            db.flush()
         convo = Conversation(channel="voice", customer_id=customer.id, external_id=ev.call_id, language=r.primary_language)
         db.add(convo)
         db.flush()
