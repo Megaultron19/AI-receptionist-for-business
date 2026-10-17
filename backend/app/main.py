@@ -1,16 +1,28 @@
 import os
+import threading
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 
-from . import auth, checkin, menu, messaging, orders, reservations, restaurant, tables
+from . import auth, checkin, menu, messaging, orders, payments, razorpay, reservations, restaurant, tables
 from .config import config
-from .db import Base, engine
+from .db import engine, migrate
 
-Base.metadata.create_all(engine)
+migrate(engine)
 
-app = FastAPI(title="Restaurant Receptionist", docs_url=None, redoc_url=None)
-for module in (auth, menu, tables, reservations, orders, restaurant, messaging, checkin):
+
+@asynccontextmanager
+async def lifespan(_):
+    stop = threading.Event()
+    if razorpay.enabled():
+        payments.start_checker(stop)
+    yield
+    stop.set()
+
+
+app = FastAPI(title="Restaurant Receptionist", docs_url=None, redoc_url=None, lifespan=lifespan)
+for module in (auth, menu, tables, reservations, orders, restaurant, messaging, checkin, payments):
     app.include_router(module.router)
 
 

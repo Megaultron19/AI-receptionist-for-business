@@ -123,3 +123,42 @@ def whatsapp_post(c, text, msg_id, phone="919876500001", name="Asha"):
                                                          "messages": [{"from": phone, "id": msg_id, "type": "text", "text": {"body": text}}]}}]}]}).encode()
     sig = "sha256=" + hmac.new(b"secret", body, hashlib.sha256).hexdigest()
     return c.post("/webhooks/whatsapp", content=body, headers={"X-Hub-Signature-256": sig, "Content-Type": "application/json"})
+
+
+class FakeRazorpay:
+    def __init__(self):
+        self.links, self.cancelled = {}, []
+
+    def create_link(self, *, amount, reference, description, name, phone):
+        link_id = f"plink_{len(self.links) + 1}"
+        self.links[link_id] = {"id": link_id, "amount": amount * 100, "amount_paid": 0, "status": "created", "payments": [],
+                               "short_url": f"https://rzp.io/l/{link_id}", "reference_id": reference}
+        return self.links[link_id]
+
+    def fetch_link(self, link_id):
+        return self.links[link_id]
+
+    def cancel_link(self, link_id):
+        from app.razorpay import RazorpayError
+        if self.links[link_id]["status"] != "created":
+            raise RazorpayError("400 cannot cancel")
+        self.links[link_id]["status"] = "cancelled"
+        self.cancelled.append(link_id)
+
+    def pay(self, link_id, amount=None):
+        link = self.links[link_id]
+        link.update(status="paid", amount_paid=link["amount"] if amount is None else amount * 100,
+                    payments=[{"payment_id": f"pay_{link_id}", "status": "captured"}])
+
+
+@pytest.fixture
+def rzp(monkeypatch):
+    from app import razorpay
+    from app.config import config
+    fake = FakeRazorpay()
+    monkeypatch.setattr(config(), "razorpay_key_id", "rzp_test")
+    monkeypatch.setattr(config(), "razorpay_key_secret", "s")
+    monkeypatch.setattr(config(), "razorpay_webhook_secret", "hook")
+    for name in ("create_link", "fetch_link", "cancel_link"):
+        monkeypatch.setattr(razorpay, name, getattr(fake, name))
+    return fake

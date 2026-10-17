@@ -1,7 +1,7 @@
 import os
 from datetime import datetime
 
-from sqlalchemy import create_engine, event
+from sqlalchemy import create_engine, event, inspect, literal
 from sqlalchemy.orm import DeclarativeBase, sessionmaker
 
 from .config import config
@@ -28,6 +28,22 @@ def make_engine(url: str | None = None):
         conn.exec_driver_sql("BEGIN IMMEDIATE")
 
     return engine
+
+
+def migrate(engine) -> None:
+    Base.metadata.create_all(engine)
+    with engine.begin() as conn:
+        existing = inspect(conn)
+        for table in Base.metadata.sorted_tables:
+            have = {c["name"] for c in existing.get_columns(table.name)}
+            for column in table.columns:
+                if column.name in have:
+                    continue
+                sql = f"ALTER TABLE {table.name} ADD COLUMN {column.name} {column.type.compile(engine.dialect)}"
+                default = column.default.arg if column.default is not None and not callable(column.default.arg) else None
+                if default is not None:
+                    sql += " DEFAULT " + str(literal(default).compile(dialect=engine.dialect, compile_kwargs={"literal_binds": True}))
+                conn.exec_driver_sql(sql)
 
 
 engine = make_engine()
