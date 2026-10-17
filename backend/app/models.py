@@ -84,4 +84,29 @@ class Reservation(Base):
     source: Mapped[str] = mapped_column(String(12), default="dashboard")
     notes: Mapped[str] = mapped_column(Text, default="")
     created_at: Mapped[datetime] = mapped_column(DateTime, default=now)
+    qr_hash: Mapped[str] = mapped_column(String(64), default="", index=True)
+    checked_in_at: Mapped[datetime | None] = mapped_column(DateTime)
     table: Mapped[DiningTable | None] = relationship(lazy="joined")
+
+
+class Conversation(Base):
+    __tablename__ = "conversations"
+    phone: Mapped[str] = mapped_column(String(20), primary_key=True)
+    name: Mapped[str] = mapped_column(String(120), default="")
+    history: Mapped[list] = mapped_column(JSON, default=list)
+    needs_staff: Mapped[bool] = mapped_column(Boolean, default=False)
+    last_inbound_at: Mapped[datetime | None] = mapped_column(DateTime)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=now)
+
+
+class SeenMessage(Base):
+    __tablename__ = "seen_messages"
+    id: Mapped[str] = mapped_column(String(128), primary_key=True)
+
+
+class Failure(Base):
+    __tablename__ = "failures"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    kind: Mapped[str] = mapped_column(String(30))
+    detail: Mapped[str] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=now)
