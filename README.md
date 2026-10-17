@@ -38,6 +38,16 @@ Tests: `cd backend && ../.venv/bin/python -m pytest -q`
 - Orders can be edited until they are paid. Prices are fixed when the dish is added, so a later menu price change does not touch existing bills
 - Orders page: start by time for pre-orders, preparing, ready, served, mark paid for cash
 - The food time promise (default 5 minutes after arrival) is only given when the slowest dish can actually be ready by then
+- Razorpay payment link sent with the bill. An order is only marked paid after the server asks Razorpay and the amount matches. Repeated webhooks or checks never mark it twice or send two receipts
+- Editing an order cancels the old payment link and sends a new one. If the old link was already paid, the edit is refused
+- Paid in cash button cancels any open payment link so the customer can't pay twice
+- New columns are added to an existing database automatically on start, so updating a restaurant keeps its data
+
+## Razorpay setup
+
+1. In the restaurant's Razorpay dashboard, create API keys and put them in `RAZORPAY_KEY_ID` and `RAZORPAY_KEY_SECRET`.
+2. That is enough. The app checks unpaid links every minute.
+3. Optional, for instant updates: add a webhook to `PUBLIC_URL/webhooks/razorpay` for the `payment_link.paid` event, and put its secret in `RAZORPAY_WEBHOOK_SECRET`.
 
 ## WhatsApp setup
 

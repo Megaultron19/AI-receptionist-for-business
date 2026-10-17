@@ -23,6 +23,10 @@ class Config(BaseSettings):
     whatsapp_confirmation_template: str = ""
     whatsapp_template_language: str = "en"
 
+    razorpay_key_id: str = ""
+    razorpay_key_secret: str = ""
+    razorpay_webhook_secret: str = ""
+
     @property
     def tz(self) -> ZoneInfo:
         return ZoneInfo(self.timezone)

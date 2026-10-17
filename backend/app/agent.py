@@ -37,7 +37,7 @@ TOOLS = [
            "items": {"type": "array", "items": {"type": "object", "properties": {"dish_id": {"type": "integer"}, "qty": {"type": "integer"},
                                                                                  "notes": {"type": ["string", "null"]}},
                                                 "required": ["dish_id", "qty", "notes"], "additionalProperties": False}}}),
-    _tool("my_order", "This customer's current unpaid food order with the bill.", {}),
+    _tool("my_order", "This customer's latest food order with the bill, payment status and payment link. Also use it when they say they have paid.", {}),
     _tool("confirm_order", "Confirm the current food order after the customer has seen the bill and agreed. The bill is sent automatically.", {}),
     _tool("cancel_order", "Cancel the current unpaid food order after the customer confirms.", {}),
     _tool("talk_to_staff", "Hand the chat to restaurant staff when the customer asks for a person, complains, or you can't help.",
@@ -102,8 +102,13 @@ class Turn:
                 self.order_ids.append(order.id)
             return {"bill": orders.bill_text(self.db, order), "status": order.status}
         if name == "my_order":
-            order = self.current_order()
-            return {"bill": orders.bill_text(self.db, order), "status": order.status, "payment": order.payment_status}
+            order = self.db.scalar(select(Order).where(Order.phone == self.convo.phone, Order.status != "cancelled").order_by(Order.id.desc()))
+            if not order:
+                raise BookingError("This customer has no food order")
+            if orders.refresh_payment(self.db, order):
+                orders.notify_paid(self.db, order)
+            return {"bill": orders.bill_text(self.db, order), "status": order.status, "payment": order.payment_status,
+                    "pay_link": order.payment_link_url or None}
         if name == "confirm_order":
             order = orders.set_status(self.db, self.current_order(), "confirmed")
             self.order_ids.append(order.id)
@@ -158,9 +163,10 @@ def reply(db: Session, convo: Conversation, text: str) -> tuple[str, Turn]:
     history = list(convo.history) + [{"role": "user", "content": text}]
     model = config().anthropic_model
     extra = {"betas": ["server-side-fallback-2026-07-01"], "fallbacks": "default"} if model in FALLBACK_MODELS else {}
-    answer = ""
+    answer, system = "", system_prompt(db)
     for _ in range(MAX_ROUNDS):
-        response = client().beta.messages.create(model=model, max_tokens=2000, system=system_prompt(db), tools=TOOLS,
+        db.commit()
+        response = client().beta.messages.create(model=model, max_tokens=2000, system=system, tools=TOOLS,
                                                  messages=history, output_config={"effort": "low"}, **extra)
         history.append({"role": "assistant", "content": [b.model_dump(mode="json", exclude_none=True) for b in response.content]})
         answer = " ".join(b.text for b in response.content if b.type == "text").strip()

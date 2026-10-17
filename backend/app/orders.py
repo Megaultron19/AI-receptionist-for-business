@@ -3,10 +3,10 @@ from datetime import date, datetime, timedelta
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from pydantic import BaseModel, Field
-from sqlalchemy import func, or_, select
+from sqlalchemy import func, or_, select, update
 from sqlalchemy.orm import Session
 
-from . import whatsapp
+from . import razorpay, whatsapp
 from .auth import current_user
 from .db import Session as DbSession
 from .db import get_db, now
@@ -33,9 +33,55 @@ def create(db: Session, *, name: str, phone: str, reservation: Reservation | Non
     return order
 
 
+def refresh_payment(db: Session, order: Order) -> bool:
+    if order.payment_status == "paid" or not order.payment_link_id:
+        return False
+    link_id, expected = order.payment_link_id, order.total * 100
+    db.commit()
+    link = razorpay.fetch_link(link_id)
+    if link.get("status") != "paid" or link.get("amount_paid") != expected:
+        return False
+    payment_id = next((p["payment_id"] for p in reversed(link.get("payments") or []) if p.get("payment_id")), "")
+    changed = db.execute(update(Order).where(Order.id == order.id, Order.payment_status == "unpaid", Order.payment_link_id == link_id)
+                         .values(payment_status="paid", payment_id=payment_id, paid_at=now())).rowcount
+    db.commit()
+    db.refresh(order)
+    return changed == 1
+
+
+def release_link(db: Session, order: Order) -> None:
+    if not order.payment_link_id or order.payment_status == "paid":
+        return
+    link_id = order.payment_link_id
+    db.commit()
+    try:
+        razorpay.cancel_link(link_id)
+    except razorpay.RazorpayError:
+        if refresh_payment(db, order):
+            notify_paid(db, order)
+            raise BookingError("This order has just been paid online")
+        if razorpay.fetch_link(link_id).get("status") not in ("cancelled", "expired"):
+            raise BookingError("Could not cancel the old payment link, please try again")
+    order.payment_link_id = order.payment_link_url = ""
+    db.commit()
+
+
+def payment_link(db: Session, order: Order) -> str:
+    if not order.payment_link_url:
+        place = restaurant(db).name
+        details = dict(amount=order.total, reference=f"{order.ref}-{secrets.token_hex(3)}", description=f"Order {order.ref} at {place}",
+                       name=order.name, phone=order.phone)
+        db.commit()
+        link = razorpay.create_link(**details)
+        order.payment_link_id, order.payment_link_url = link["id"], link["short_url"]
+        db.commit()
+    return order.payment_link_url
+
+
 def set_items(db: Session, order: Order, items: list[tuple[int, int, str]]) -> Order:
     if order.payment_status == "paid" or order.status not in EDITABLE:
         raise BookingError("This order can't be changed any more")
+    release_link(db, order)
     lines = []
     for menu_item_id, qty, notes in items:
         dish = db.get(MenuItem, menu_item_id)
@@ -57,6 +103,10 @@ def set_status(db: Session, order: Order, status: str) -> Order:
         raise BookingError(f"A {order.status} order can't be marked {status}")
     if status == "confirmed" and not order.items:
         raise BookingError("Add at least one dish before confirming")
+    if status == "cancelled":
+        release_link(db, order)
+        if order.payment_status == "paid":
+            raise BookingError("This order is already paid. Refund it in Razorpay first.")
     order.status = status
     db.commit()
     return order
@@ -99,12 +149,49 @@ def send_order_confirmation(order_id: int) -> None:
         order = db.get(Order, order_id)
         if not order or not order.phone or order.status != "confirmed":
             return
+        message = "Your order is confirmed.\n\n" + bill_text(db, order)
+        if order.payment_status == "unpaid" and razorpay.enabled():
+            try:
+                message += "\n\nPay online: " + payment_link(db, order)
+            except Exception as e:
+                whatsapp.log_failure(db, "razorpay", f"Payment link for order {order.ref}: {e}")
+                message += "\n\nYou can pay at the restaurant."
+        send(db, order, message, "whatsapp_order")
+
+
+def send(db: Session, order: Order, message: str, kind: str) -> None:
+    can_send = whatsapp.can_message_freely(db, order.phone)
+    db.commit()
+    try:
+        if not can_send:
+            raise whatsapp.WhatsAppError("customer has not messaged in 24 hours")
+        whatsapp.send_text(order.phone, message)
+    except Exception as e:
+        whatsapp.log_failure(db, kind, f"Order {order.ref} for {order.phone}: {e}")
+
+
+def notify_paid(db: Session, order: Order) -> None:
+    if order.phone:
+        send(db, order, f"Payment of Rs {order.total} received for order {order.ref}. Thank you!", "whatsapp_payment")
+
+
+def check_payment(order_id: int) -> None:
+    with DbSession() as db:
+        order = db.get(Order, order_id)
         try:
-            if not whatsapp.can_message_freely(db, order.phone):
-                raise whatsapp.WhatsAppError("customer has not messaged in 24 hours")
-            whatsapp.send_text(order.phone, "Your order is confirmed.\n\n" + bill_text(db, order))
+            if order and refresh_payment(db, order):
+                notify_paid(db, order)
         except Exception as e:
-            whatsapp.log_failure(db, "whatsapp_order", f"Order {order.ref} for {order.phone}: {e}")
+            whatsapp.log_failure(db, "razorpay", f"Checking payment for order {order.ref}: {e}")
+
+
+def check_pending_payments() -> None:
+    with DbSession() as db:
+        ids = db.scalars(select(Order.id).where(Order.payment_link_id != "", Order.payment_status == "unpaid", Order.status != "cancelled",
+                                                Order.created_at > now() - timedelta(days=2))).all()
+        db.commit()
+    for order_id in ids:
+        check_payment(order_id)
 
 
 def find_order(db: Session, ref: str) -> Order:
@@ -119,7 +206,7 @@ def order_out(db: Session, o: Order) -> dict:
             "total": o.total, "source": o.source, "created_at": o.created_at, "booking": o.reservation.ref if o.reservation else None,
             "booking_at": o.reservation.starts_at if o.reservation else None,
             "table": o.reservation.table.name if o.reservation and o.reservation.table else None,
-            "start_by": start_by(o), "ready_note": ready_note(db, o) if o.items else "",
+            "start_by": start_by(o), "payment_link": o.payment_link_url, "payment_id": o.payment_id, "paid_at": o.paid_at, "ready_note": ready_note(db, o) if o.items else "",
             "items": [{"menu_item_id": i.menu_item_id, "name": i.name, "price": i.price, "qty": i.qty, "notes": i.notes} for i in o.items]}
 
 
@@ -197,6 +284,21 @@ def mark_paid(ref: str, db: Session = Depends(get_db), _=Depends(current_user)):
     order = find_order(db, ref)
     if order.status == "cancelled":
         raise HTTPException(409, "This order is cancelled")
-    order.payment_status = "paid"
-    db.commit()
+    try:
+        release_link(db, order)
+    except BookingError as e:
+        raise bad(e)
+    if order.payment_status != "paid":
+        order.payment_status, order.payment_id, order.paid_at = "paid", "cash", now()
+        db.commit()
     return order_out(db, order)
+
+
+@router.post("/{ref}/check-payment")
+def check_payment_now(ref: str, db: Session = Depends(get_db), _=Depends(current_user)):
+    order = find_order(db, ref)
+    order_id = order.id
+    db.close()
+    check_payment(order_id)
+    with DbSession() as fresh:
+        return order_out(fresh, fresh.get(Order, order_id))

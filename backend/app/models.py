@@ -124,6 +124,10 @@ class Order(Base):
     total: Mapped[int] = mapped_column(Integer, default=0)
     source: Mapped[str] = mapped_column(String(12), default="dashboard")
     created_at: Mapped[datetime] = mapped_column(DateTime, default=now)
+    payment_link_id: Mapped[str] = mapped_column(String(40), default="", index=True)
+    payment_link_url: Mapped[str] = mapped_column(String(200), default="")
+    payment_id: Mapped[str] = mapped_column(String(40), default="")
+    paid_at: Mapped[datetime | None] = mapped_column(DateTime)
     reservation: Mapped[Reservation | None] = relationship(lazy="joined")
     items: Mapped[list["OrderItem"]] = relationship(lazy="selectin", cascade="all, delete-orphan", order_by="OrderItem.id")
 
