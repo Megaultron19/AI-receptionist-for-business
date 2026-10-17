@@ -1,0 +1,92 @@
+import hashlib
+import hmac
+import secrets
+from datetime import timedelta
+
+from fastapi import APIRouter, Depends, HTTPException, Request, Response
+from pydantic import BaseModel
+from sqlalchemy import select
+from sqlalchemy.orm import Session
+
+from .db import get_db, now
+from .models import LoginSession, User
+
+router = APIRouter(prefix="/api/auth")
+COOKIE = "session"
+ROLES = ("owner", "staff")
+
+
+def hash_password(password: str) -> str:
+    salt = secrets.token_bytes(16)
+    return salt.hex() + ":" + hashlib.scrypt(password.encode(), salt=salt, n=2**14, r=8, p=1).hex()
+
+
+def check_password(password: str, stored: str) -> bool:
+    salt, digest = stored.split(":")
+    candidate = hashlib.scrypt(password.encode(), salt=bytes.fromhex(salt), n=2**14, r=8, p=1).hex()
+    return hmac.compare_digest(candidate, digest)
+
+
+def create_user(db: Session, username: str, password: str, role: str) -> User:
+    if role not in ROLES:
+        raise HTTPException(400, f"Role must be one of {', '.join(ROLES)}")
+    if len(password) < 8:
+        raise HTTPException(400, "Password must be at least 8 characters")
+    if db.scalar(select(User).where(User.username == username.lower())):
+        raise HTTPException(400, "That username is taken")
+    user = User(username=username.lower(), password_hash=hash_password(password), role=role)
+    db.add(user)
+    db.flush()
+    return user
+
+
+def token_hash(token: str) -> str:
+    return hashlib.sha256(token.encode()).hexdigest()
+
+
+def current_user(request: Request, db: Session = Depends(get_db)) -> User:
+    token = request.cookies.get(COOKIE, "")
+    session = db.get(LoginSession, token_hash(token)) if token else None
+    if not session or session.expires_at < now() or not session.user.active:
+        raise HTTPException(401, "Please log in")
+    if request.method != "GET" and request.headers.get("X-Requested-With") != "dashboard":
+        raise HTTPException(403, "Bad request origin")
+    return session.user
+
+
+def owner_only(user: User = Depends(current_user)) -> User:
+    if user.role != "owner":
+        raise HTTPException(403, "Only the owner can do this")
+    return user
+
+
+class LoginIn(BaseModel):
+    username: str
+    password: str
+
+
+@router.post("/login")
+def login(body: LoginIn, response: Response, db: Session = Depends(get_db)):
+    user = db.scalar(select(User).where(User.username == body.username.lower()))
+    if not user or not user.active or not check_password(body.password, user.password_hash):
+        raise HTTPException(401, "Wrong username or password")
+    token = secrets.token_urlsafe(32)
+    db.add(LoginSession(token_hash=token_hash(token), user_id=user.id, expires_at=now() + timedelta(days=7)))
+    db.commit()
+    response.set_cookie(COOKIE, token, httponly=True, samesite="strict", max_age=7 * 86400)
+    return {"username": user.username, "role": user.role}
+
+
+@router.post("/logout")
+def logout(request: Request, response: Response, db: Session = Depends(get_db)):
+    session = db.get(LoginSession, token_hash(request.cookies.get(COOKIE, "")))
+    if session:
+        db.delete(session)
+        db.commit()
+    response.delete_cookie(COOKIE)
+    return {"ok": True}
+
+
+@router.get("/me")
+def me(user: User = Depends(current_user)):
+    return {"username": user.username, "role": user.role}
