@@ -34,6 +34,10 @@ Tests: `cd backend && ../.venv/bin/python -m pytest -q`
 - Bookings made from the dashboard also get the WhatsApp confirmation
 - Check-in page for the door: scan the QR code with a scanner gun or the camera, duplicate and wrong-day scans are refused
 - Failed AI replies hand the chat to staff, and WhatsApp send failures are recorded
+- Food orders from WhatsApp or the dashboard, linked to a booking or not. Customers name dishes in their own words and get an itemized bill
+- Orders can be edited until they are paid. Prices are fixed when the dish is added, so a later menu price change does not touch existing bills
+- Orders page: start by time for pre-orders, preparing, ready, served, mark paid for cash
+- The food time promise (default 5 minutes after arrival) is only given when the slowest dish can actually be ready by then
 
 ## WhatsApp setup
 

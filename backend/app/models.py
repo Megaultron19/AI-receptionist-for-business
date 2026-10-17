@@ -110,3 +110,31 @@ class Failure(Base):
     kind: Mapped[str] = mapped_column(String(30))
     detail: Mapped[str] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=now)
+
+
+class Order(Base):
+    __tablename__ = "orders"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    ref: Mapped[str] = mapped_column(String(10), unique=True)
+    name: Mapped[str] = mapped_column(String(120))
+    phone: Mapped[str] = mapped_column(String(20), default="", index=True)
+    reservation_id: Mapped[int | None] = mapped_column(ForeignKey("reservations.id"))
+    status: Mapped[str] = mapped_column(String(12), default="open")
+    payment_status: Mapped[str] = mapped_column(String(12), default="unpaid")
+    total: Mapped[int] = mapped_column(Integer, default=0)
+    source: Mapped[str] = mapped_column(String(12), default="dashboard")
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=now)
+    reservation: Mapped[Reservation | None] = relationship(lazy="joined")
+    items: Mapped[list["OrderItem"]] = relationship(lazy="selectin", cascade="all, delete-orphan", order_by="OrderItem.id")
+
+
+class OrderItem(Base):
+    __tablename__ = "order_items"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    order_id: Mapped[int] = mapped_column(ForeignKey("orders.id", ondelete="CASCADE"))
+    menu_item_id: Mapped[int | None] = mapped_column(ForeignKey("menu_items.id", ondelete="SET NULL"))
+    name: Mapped[str] = mapped_column(String(120))
+    price: Mapped[int] = mapped_column(Integer)
+    qty: Mapped[int] = mapped_column(Integer)
+    notes: Mapped[str] = mapped_column(String(200), default="")
+    menu_item: Mapped[MenuItem | None] = relationship(lazy="joined")
