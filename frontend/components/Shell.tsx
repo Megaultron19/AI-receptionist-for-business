@@ -11,6 +11,7 @@ export const useMe = () => useContext(MeContext);
 const LINKS = [
   { href: "/", label: "Today" },
   { href: "/reservations/", label: "Reservations" },
+  { href: "/orders/", label: "Orders" },
   { href: "/checkin/", label: "Check-in" },
   { href: "/tables/", label: "Tables" },
   { href: "/menu/", label: "Menu" },

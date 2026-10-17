@@ -8,6 +8,7 @@ from sqlalchemy.exc import IntegrityError
 from . import agent, whatsapp
 from .config import config
 from .confirmations import send_confirmation
+from .orders import send_order_confirmation
 from .db import Session, now
 from .models import Conversation, SeenMessage
 from .reservations import BookingError, normalize_phone
@@ -56,7 +57,7 @@ def handle_message(message: dict, profile_name: str) -> None:
     except BookingError:
         return
     text = message.get("text", {}).get("body", "").strip() if message.get("type") == "text" else ""
-    booked = []
+    booked, confirmed = [], []
     with Session() as db:
         convo = db.get(Conversation, phone) or Conversation(phone=phone, name=profile_name, history=[])
         if convo.last_inbound_at and now() - convo.last_inbound_at > FRESH_START_AFTER:
@@ -71,7 +72,8 @@ def handle_message(message: dict, profile_name: str) -> None:
             answer = "Sorry, I can only read text messages. Please type your message."
         else:
             try:
-                answer, booked = agent.reply(db, convo, text)
+                answer, turn = agent.reply(db, convo, text)
+                booked, confirmed = turn.booked_ids, turn.order_ids
             except Exception as e:
                 convo.needs_staff = True
                 whatsapp.log_failure(db, "ai_reply", f"{phone}: {e}")
@@ -84,3 +86,5 @@ def handle_message(message: dict, profile_name: str) -> None:
             whatsapp.log_failure(db, "whatsapp_reply", f"{phone}: {e}")
     for reservation_id in booked:
         send_confirmation(reservation_id)
+    for order_id in dict.fromkeys(confirmed):
+        send_order_confirmation(order_id)

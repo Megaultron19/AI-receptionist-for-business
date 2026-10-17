@@ -2,12 +2,14 @@ import json
 from datetime import date, datetime, time, timedelta
 
 import anthropic
+from fastapi import HTTPException
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from .config import config
 from .db import now
-from .models import Conversation, MenuItem, Reservation
+from . import orders
+from .models import Conversation, MenuItem, Order, Reservation
 from .reservations import BookingError, available_times, book, find, reschedule, restaurant, set_status
 
 MAX_ROUNDS = 6
@@ -29,6 +31,15 @@ TOOLS = [
     _tool("change_booking", "Move one of this customer's bookings.", {"ref": {"type": "string"}, "date": DATE, "time": TIME, "guests": {"type": "integer"}}),
     _tool("cancel_booking", "Cancel one of this customer's bookings after they confirm.", {"ref": {"type": "string"}}),
     _tool("get_menu", "The current menu with prices.", {}),
+    _tool("order_food", "Set the dishes on this customer's food order, creating it if needed. Always send the full list, it replaces what was there. "
+          "Use dish ids from get_menu. Link it to their booking when they have one.",
+          {"booking_ref": {"type": ["string", "null"]},
+           "items": {"type": "array", "items": {"type": "object", "properties": {"dish_id": {"type": "integer"}, "qty": {"type": "integer"},
+                                                                                 "notes": {"type": ["string", "null"]}},
+                                                "required": ["dish_id", "qty", "notes"], "additionalProperties": False}}}),
+    _tool("my_order", "This customer's current unpaid food order with the bill.", {}),
+    _tool("confirm_order", "Confirm the current food order after the customer has seen the bill and agreed. The bill is sent automatically.", {}),
+    _tool("cancel_order", "Cancel the current unpaid food order after the customer confirms.", {}),
     _tool("talk_to_staff", "Hand the chat to restaurant staff when the customer asks for a person, complains, or you can't help.",
           {"reason": {"type": "string"}}),
 ]
@@ -36,13 +47,23 @@ TOOLS = [
 
 class Turn:
     def __init__(self, db: Session, convo: Conversation):
-        self.db, self.convo, self.booked_ids = db, convo, []
+        self.db, self.convo, self.booked_ids, self.order_ids = db, convo, [], []
 
     def own(self, ref: str) -> Reservation:
         reservation = find(self.db, ref)
         if reservation.phone != self.convo.phone:
             raise BookingError("I can only find bookings made from this number")
         return reservation
+
+    def order(self) -> Order | None:
+        return self.db.scalar(select(Order).where(Order.phone == self.convo.phone, Order.status.in_(orders.EDITABLE),
+                                                  Order.payment_status == "unpaid").order_by(Order.id.desc()))
+
+    def current_order(self) -> Order:
+        order = self.order()
+        if not order:
+            raise BookingError("This customer has no open food order")
+        return order
 
     def run(self, name: str, args: dict):
         start = lambda: datetime.combine(date.fromisoformat(args["date"]), time.fromisoformat(args["time"]))
@@ -67,7 +88,29 @@ class Turn:
             return {"cancelled": True}
         if name == "get_menu":
             items = self.db.scalars(select(MenuItem).where(MenuItem.available).order_by(MenuItem.category, MenuItem.name))
-            return [{"dish": i.name, "category": i.category, "price": f"Rs {i.price}", "veg": i.veg, "about": i.description} for i in items]
+            return [{"dish_id": i.id, "dish": i.name, "also_called": i.other_names, "category": i.category, "price": f"Rs {i.price}", "veg": i.veg, "about": i.description} for i in items]
+        if name == "order_food":
+            order = self.order()
+            reservation = self.own(args["booking_ref"]) if args.get("booking_ref") else None
+            if not order:
+                order = orders.create(self.db, name=self.convo.name or "WhatsApp customer", phone=self.convo.phone,
+                                      reservation=reservation, source="whatsapp")
+            elif reservation:
+                order.reservation = reservation
+            orders.set_items(self.db, order, [(i["dish_id"], i["qty"], i.get("notes") or "") for i in args["items"]])
+            if order.status == "confirmed":
+                self.order_ids.append(order.id)
+            return {"bill": orders.bill_text(self.db, order), "status": order.status}
+        if name == "my_order":
+            order = self.current_order()
+            return {"bill": orders.bill_text(self.db, order), "status": order.status, "payment": order.payment_status}
+        if name == "confirm_order":
+            order = orders.set_status(self.db, self.current_order(), "confirmed")
+            self.order_ids.append(order.id)
+            return {"confirmed": True, "note": "The bill is sent automatically."}
+        if name == "cancel_order":
+            orders.set_status(self.db, self.current_order(), "cancelled")
+            return {"cancelled": True}
         if name == "talk_to_staff":
             self.convo.needs_staff = True
             return {"handed_over": True}
@@ -77,9 +120,14 @@ class Turn:
         try:
             return json.dumps(self.run(name, args), default=str), False
         except BookingError as e:
+            self.db.rollback()
             alternatives = f" Free nearby: {', '.join(t.strftime('%H:%M') for t in e.alternatives)}" if e.alternatives else ""
             return json.dumps({"error": e.message + alternatives}), True
+        except HTTPException as e:
+            self.db.rollback()
+            return json.dumps({"error": e.detail}), True
         except (ValueError, KeyError) as e:
+            self.db.rollback()
             return json.dumps({"error": f"bad input: {e}"}), True
 
 
@@ -90,6 +138,8 @@ def system_prompt(db: Session) -> str:
 Reply in the customer's language (English or Hindi). Keep replies short and friendly, plain text.
 Use the tools for availability, bookings and the menu. Never make up times, tables, prices or booking references.
 Before booking, confirm date, time, number of guests and the customer's name.
+Customers can pre-order food, with or without a booking. Match what they ask for to dishes from get_menu, and ask if unsure.
+Show them the bill from order_food and only call confirm_order once they agree. They can change the order until it is paid.
 If the customer asks for a person, complains, or you cannot help, use talk_to_staff.
 Only talk about this restaurant.
 
@@ -103,7 +153,7 @@ def client() -> anthropic.Anthropic:
     return anthropic.Anthropic(api_key=config().anthropic_api_key, timeout=30, max_retries=2)
 
 
-def reply(db: Session, convo: Conversation, text: str) -> tuple[str, list[int]]:
+def reply(db: Session, convo: Conversation, text: str) -> tuple[str, Turn]:
     turn = Turn(db, convo)
     history = list(convo.history) + [{"role": "user", "content": text}]
     model = config().anthropic_model
@@ -127,4 +177,4 @@ def reply(db: Session, convo: Conversation, text: str) -> tuple[str, list[int]]:
     convo.history = history
     if convo.needs_staff and not answer:
         answer = "I have passed your message to our staff. Someone will reply here soon."
-    return answer or "Sorry, could you say that again?", turn.booked_ids
+    return answer or "Sorry, could you say that again?", turn
