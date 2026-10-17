@@ -2,7 +2,7 @@ import re
 import secrets
 from datetime import date, datetime, time, timedelta
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from pydantic import BaseModel, Field
 from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
@@ -195,20 +195,33 @@ def availability(day: date, guests: int, db: Session = Depends(get_db), _=Depend
     return [t.strftime("%H:%M") for t in available_times(db, guests, day)]
 
 
+def confirm_later(reservation_id: int) -> None:
+    from .confirmations import send_confirmation
+    send_confirmation(reservation_id)
+
+
 @router.post("")
-def create(body: BookingIn, db: Session = Depends(get_db), _=Depends(current_user)):
+def create(body: BookingIn, background: BackgroundTasks, db: Session = Depends(get_db), _=Depends(current_user)):
     try:
-        return reservation_out(book(db, name=body.name, phone=body.phone, guests=body.guests, start=body.starts_at, notes=body.notes))
+        reservation = book(db, name=body.name, phone=body.phone, guests=body.guests, start=body.starts_at, notes=body.notes)
     except BookingError as e:
         raise http_error(e)
+    out = reservation_out(reservation)
+    db.close()
+    background.add_task(confirm_later, reservation.id)
+    return out
 
 
 @router.put("/{ref}")
-def change(ref: str, body: ChangeIn, db: Session = Depends(get_db), _=Depends(current_user)):
+def change(ref: str, body: ChangeIn, background: BackgroundTasks, db: Session = Depends(get_db), _=Depends(current_user)):
     try:
-        return reservation_out(reschedule(db, find(db, ref), guests=body.guests, start=body.starts_at))
+        reservation = reschedule(db, find(db, ref), guests=body.guests, start=body.starts_at)
     except BookingError as e:
         raise http_error(e)
+    out = reservation_out(reservation)
+    db.close()
+    background.add_task(confirm_later, reservation.id)
+    return out
 
 
 @router.post("/{ref}/status")

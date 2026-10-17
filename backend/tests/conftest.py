@@ -2,7 +2,8 @@ import os
 import tempfile
 
 os.environ["DATA_DIR"] = tempfile.mkdtemp()
-os.environ["DASHBOARD_DIR"] = "/nonexistent"
+os.environ.update(DASHBOARD_DIR="/nonexistent", WHATSAPP_TOKEN="t", WHATSAPP_PHONE_ID="1", WHATSAPP_APP_SECRET="secret",
+                  WHATSAPP_VERIFY_TOKEN="verify", ANTHROPIC_API_KEY="k")
 
 from datetime import date, datetime, time, timedelta
 
@@ -50,3 +51,75 @@ def client(username: str = "owner", password: str = "owner-pass-1") -> TestClien
     assert c.post("/api/auth/login", json={"username": username, "password": password}).status_code == 200
     c.headers["X-Requested-With"] = "dashboard"
     return c
+
+
+class FakeWhatsApp:
+    def __init__(self):
+        self.sent, self.fail = [], False
+
+    def send_text(self, to, text):
+        if self.fail:
+            raise RuntimeError("network down")
+        self.sent.append(("text", to, text))
+
+    def upload_image(self, png):
+        assert png.startswith(b"\x89PNG")
+        return "media-1"
+
+    def send_image(self, to, media_id, caption):
+        self.sent.append(("image", to, caption))
+
+    def send_template(self, to, media_id, params):
+        self.sent.append(("template", to, params))
+
+
+@pytest.fixture
+def wa(monkeypatch):
+    from app import whatsapp
+    fake = FakeWhatsApp()
+    for name in ("send_text", "upload_image", "send_image", "send_template"):
+        monkeypatch.setattr(whatsapp, name, getattr(fake, name))
+    return fake
+
+
+class Block_:
+    def __init__(self, **kw):
+        self.__dict__.update(kw)
+
+    def model_dump(self, **_):
+        return dict(self.__dict__)
+
+
+class FakeClaude:
+    def __init__(self, steps):
+        self.steps, self.requests = list(steps), []
+        self.beta = self
+        self.messages = self
+
+    def create(self, **kw):
+        self.requests.append({**kw, "messages": list(kw["messages"])})
+        step = self.steps.pop(0)
+        if isinstance(step, str):
+            return Block_(stop_reason="end_turn", content=[Block_(type="text", text=step)])
+        calls = [Block_(type="tool_use", id=f"t{len(self.requests)}{i}", name=n, input=a) for i, (n, a) in enumerate(step)]
+        return Block_(stop_reason="tool_use", content=calls)
+
+
+@pytest.fixture
+def claude(monkeypatch):
+    from app import agent
+    holder = {}
+
+    def script(*steps):
+        holder["c"] = FakeClaude(steps)
+        monkeypatch.setattr(agent, "client", lambda: holder["c"])
+        return holder["c"]
+    return script
+
+
+def whatsapp_post(c, text, msg_id, phone="919876500001", name="Asha"):
+    import hashlib, hmac, json
+    body = json.dumps({"entry": [{"changes": [{"value": {"contacts": [{"wa_id": phone, "profile": {"name": name}}],
+                                                         "messages": [{"from": phone, "id": msg_id, "type": "text", "text": {"body": text}}]}}]}]}).encode()
+    sig = "sha256=" + hmac.new(b"secret", body, hashlib.sha256).hexdigest()
+    return c.post("/webhooks/whatsapp", content=body, headers={"X-Hub-Signature-256": sig, "Content-Type": "application/json"})

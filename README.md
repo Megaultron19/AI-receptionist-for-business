@@ -18,6 +18,8 @@ cd backend
 
 Open http://localhost:8000 and log in.
 
+Copy `backend/.env.example` to `backend/.env` and fill in the keys you have. Anything left empty is simply switched off.
+
 Tests: `cd backend && ../.venv/bin/python -m pytest -q`
 
 ## What works so far
@@ -27,3 +29,15 @@ Tests: `cd backend && ../.venv/bin/python -m pytest -q`
 - Tables: add tables with seat counts, mark unavailable, block time slots for one table or all
 - Reservations: real availability, smallest free table assigned, no double bookings even when two requests arrive at once, change, cancel, arrived, no-show
 - Settings: restaurant details, opening hours, table time, booking slots
+- WhatsApp: customers chat to book, change or cancel a table, ask about the menu, or ask for a person
+- Booking confirmation on WhatsApp with a QR code, restaurant name, booking reference, date and time, guests and table
+- Bookings made from the dashboard also get the WhatsApp confirmation
+- Check-in page for the door: scan the QR code with a scanner gun or the camera, duplicate and wrong-day scans are refused
+- Failed AI replies hand the chat to staff, and WhatsApp send failures are recorded
+
+## WhatsApp setup
+
+1. In Meta Business, create a WhatsApp app and add the restaurant number.
+2. Put the permanent access token, phone number ID and app secret in `.env`. Pick any random text for `WHATSAPP_VERIFY_TOKEN`.
+3. Set the webhook URL to `PUBLIC_URL/webhooks/whatsapp` with the same verify token and subscribe to `messages`.
+4. WhatsApp only allows free messages within 24 hours of the customer writing. For bookings made from the dashboard or phone, create a template with an image header and six body values in this order: name, restaurant, booking reference, date and time, guests, table. Put its name in `WHATSAPP_CONFIRMATION_TEMPLATE`.
