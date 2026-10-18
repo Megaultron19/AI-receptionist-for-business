@@ -6,11 +6,12 @@ from sqlalchemy.orm import Session
 
 from .auth import current_user, owner_only
 from .db import get_db
-from .reservations import DAYS, restaurant
+from .reservations import DAYS, BookingError, normalize_phone, restaurant
 
 router = APIRouter(prefix="/api/restaurant")
 HHMM = re.compile(r"^([01]\d|2[0-3]):[0-5]\d$")
-FIELDS = ("name", "phone", "address", "about", "hours", "slot_minutes", "dining_minutes", "max_guests", "advance_days", "prep_target_minutes")
+FIELDS = ("name", "phone", "address", "about", "hours", "slot_minutes", "dining_minutes", "max_guests", "advance_days", "prep_target_minutes",
+          "staff_phone")
 
 
 class RestaurantIn(BaseModel):
@@ -24,6 +25,15 @@ class RestaurantIn(BaseModel):
     max_guests: int = Field(ge=1, le=100)
     advance_days: int = Field(ge=0, le=365)
     prep_target_minutes: int = Field(ge=1, le=120)
+    staff_phone: str = Field("", max_length=20)
+
+    @field_validator("staff_phone")
+    @classmethod
+    def valid_phone(cls, phone):
+        try:
+            return normalize_phone(phone) if phone.strip() else ""
+        except BookingError as e:
+            raise ValueError(e.message)
 
     @field_validator("hours")
     @classmethod

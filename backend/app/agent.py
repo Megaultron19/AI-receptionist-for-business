@@ -46,8 +46,8 @@ TOOLS = [
 
 
 class Turn:
-    def __init__(self, db: Session, convo: Conversation):
-        self.db, self.convo, self.booked_ids, self.order_ids = db, convo, [], []
+    def __init__(self, db: Session, convo, channel: str):
+        self.db, self.convo, self.channel, self.booked_ids, self.order_ids = db, convo, channel, [], []
 
     def own(self, ref: str) -> Reservation:
         reservation = find(self.db, ref)
@@ -72,7 +72,7 @@ class Turn:
             return {"free_times": [t.strftime("%H:%M") for t in times] or "nothing free that day"}
         if name == "book_table":
             reservation = book(self.db, name=args["name"], phone=self.convo.phone, guests=args["guests"], start=start(),
-                               source="whatsapp", notes=args.get("notes") or "")
+                               source=self.channel, notes=args.get("notes") or "")
             self.booked_ids.append(reservation.id)
             return {"booked": True, "ref": reservation.ref, "table": reservation.table.name, "note": "A QR confirmation is sent automatically."}
         if name == "my_bookings":
@@ -93,8 +93,8 @@ class Turn:
             order = self.order()
             reservation = self.own(args["booking_ref"]) if args.get("booking_ref") else None
             if not order:
-                order = orders.create(self.db, name=self.convo.name or "WhatsApp customer", phone=self.convo.phone,
-                                      reservation=reservation, source="whatsapp")
+                order = orders.create(self.db, name=self.convo.name or "Guest", phone=self.convo.phone,
+                                      reservation=reservation, source=self.channel)
             elif reservation:
                 order.reservation = reservation
             orders.set_items(self.db, order, [(i["dish_id"], i["qty"], i.get("notes") or "") for i in args["items"]])
@@ -136,11 +136,21 @@ class Turn:
             return json.dumps({"error": f"bad input: {e}"}), True
 
 
-def system_prompt(db: Session) -> str:
+CHANNEL_RULES = {
+    "whatsapp": "You are chatting with customers on WhatsApp. Reply in the customer's language (English or Hindi). "
+                "Keep replies short and friendly, plain text.",
+    "phone": "You are answering a phone call and your words are read aloud. Use one to three short sentences, "
+             "with no lists, symbols, emojis or links. If the caller speaks Hindi, reply in Hindi written in Devanagari, otherwise English. "
+             "Say booking references letter by letter. Confirmations and bills are sent to the caller on WhatsApp. "
+             "talk_to_staff transfers the call to a person.",
+}
+
+
+def system_prompt(db: Session, channel: str) -> str:
     r = restaurant(db)
     hours = "; ".join(f"{day}: {', '.join('-'.join(w) for w in windows) or 'closed'}" for day, windows in r.hours.items())
-    return f"""You are the receptionist for {r.name}, a restaurant, chatting with customers on WhatsApp.
-Reply in the customer's language (English or Hindi). Keep replies short and friendly, plain text.
+    return f"""You are the receptionist for {r.name}, a restaurant.
+{CHANNEL_RULES[channel]}
 Use the tools for availability, bookings and the menu. Never make up times, tables, prices or booking references.
 Before booking, confirm date, time, number of guests and the customer's name.
 Customers can pre-order food, with or without a booking. Match what they ask for to dishes from get_menu, and ask if unsure.
@@ -158,12 +168,12 @@ def client() -> anthropic.Anthropic:
     return anthropic.Anthropic(api_key=config().anthropic_api_key, timeout=30, max_retries=2)
 
 
-def reply(db: Session, convo: Conversation, text: str) -> tuple[str, Turn]:
-    turn = Turn(db, convo)
+def reply(db: Session, convo, text: str, channel: str = "whatsapp") -> tuple[str, Turn]:
+    turn = Turn(db, convo, channel)
     history = list(convo.history) + [{"role": "user", "content": text}]
     model = config().anthropic_model
     extra = {"betas": ["server-side-fallback-2026-07-01"], "fallbacks": "default"} if model in FALLBACK_MODELS else {}
-    answer, system = "", system_prompt(db)
+    answer, system = "", system_prompt(db, channel)
     for _ in range(MAX_ROUNDS):
         db.commit()
         response = client().beta.messages.create(model=model, max_tokens=2000, system=system, tools=TOOLS,
@@ -181,6 +191,6 @@ def reply(db: Session, convo: Conversation, text: str) -> tuple[str, Turn]:
     if history[-1]["role"] == "user":
         history.append({"role": "assistant", "content": [{"type": "text", "text": answer or "Sorry, could you say that again?"}]})
     convo.history = history
-    if convo.needs_staff and not answer:
+    if convo.needs_staff and not answer and channel == "whatsapp":
         answer = "I have passed your message to our staff. Someone will reply here soon."
     return answer or "Sorry, could you say that again?", turn

@@ -3,7 +3,7 @@ import tempfile
 
 os.environ["DATA_DIR"] = tempfile.mkdtemp()
 os.environ.update(DASHBOARD_DIR="/nonexistent", WHATSAPP_TOKEN="t", WHATSAPP_PHONE_ID="1", WHATSAPP_APP_SECRET="secret",
-                  WHATSAPP_VERIFY_TOKEN="verify", ANTHROPIC_API_KEY="k")
+                  WHATSAPP_VERIFY_TOKEN="verify", ANTHROPIC_API_KEY="k", PLIVO_WEBHOOK_KEY="pk")
 
 from datetime import date, datetime, time, timedelta
 

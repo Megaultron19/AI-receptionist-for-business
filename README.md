@@ -42,6 +42,19 @@ Tests: `cd backend && ../.venv/bin/python -m pytest -q`
 - Editing an order cancels the old payment link and sends a new one. If the old link was already paid, the edit is refused
 - Paid in cash button cancels any open payment link so the customer can't pay twice
 - New columns are added to an existing database automatically on start, so updating a restaurant keeps its data
+- Phone receptionist on Plivo: answers in English or Hindi, checks real availability, books, changes and cancels, takes food pre-orders, and sends the QR confirmation on WhatsApp after the call
+- Outside opening hours callers hear "the restaurant is closed, please call later" in English and Hindi
+- Callers asking for a person, or any AI failure, are transferred to the staff phone from Settings. Without one, the call is marked "needs callback"
+- Calls page with the outcome and transcript of every call
+
+## Plivo setup
+
+1. Buy an Indian number in the restaurant's Plivo account.
+2. Pick a long random text and put it in `PLIVO_WEBHOOK_KEY`.
+3. Create a Plivo application with answer URL `PUBLIC_URL/webhooks/plivo/answer?key=YOUR_KEY` and hangup URL `PUBLIC_URL/webhooks/plivo/hangup?key=YOUR_KEY`, both POST, and attach the number to it.
+4. Put the staff mobile number in Settings so callers can be transferred.
+
+Callers usually have not messaged the restaurant on WhatsApp, so their booking QR goes out through the confirmation template. Food bills for callers are only sent if they messaged in the last 24 hours, otherwise the Orders page has everything.
 
 ## Razorpay setup
 

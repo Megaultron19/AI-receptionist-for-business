@@ -5,7 +5,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 
-from . import auth, checkin, menu, messaging, orders, payments, razorpay, reservations, restaurant, tables
+from . import auth, checkin, menu, messaging, orders, payments, phone, razorpay, reservations, restaurant, tables
 from .config import config
 from .db import engine, migrate
 
@@ -22,7 +22,7 @@ async def lifespan(_):
 
 
 app = FastAPI(title="Restaurant Receptionist", docs_url=None, redoc_url=None, lifespan=lifespan)
-for module in (auth, menu, tables, reservations, orders, restaurant, messaging, checkin, payments):
+for module in (auth, menu, tables, reservations, orders, restaurant, messaging, checkin, payments, phone):
     app.include_router(module.router)
 
 

@@ -5,7 +5,7 @@ import { useApi } from "@/lib/useApi";
 import { ErrorBox, Field, Header, useAction } from "@/components/ui";
 
 const DAYS: [string, string][] = [["mon", "Monday"], ["tue", "Tuesday"], ["wed", "Wednesday"], ["thu", "Thursday"], ["fri", "Friday"], ["sat", "Saturday"], ["sun", "Sunday"]];
-type Settings = { name: string; phone: string; address: string; about: string; hours: Record<string, string[][]>; slot_minutes: number; dining_minutes: number; max_guests: number; advance_days: number; prep_target_minutes: number };
+type Settings = { name: string; phone: string; address: string; about: string; hours: Record<string, string[][]>; slot_minutes: number; dining_minutes: number; max_guests: number; advance_days: number; prep_target_minutes: number; staff_phone: string };
 
 const toText = (windows: string[][]) => windows.map((w) => w.join("-")).join(", ");
 const toWindows = (text: string) => text.split(",").map((s) => s.trim()).filter(Boolean).map((s) => s.split("-").map((t) => t.trim()));
@@ -35,6 +35,7 @@ export default function SettingsPage() {
       <section className="card grid gap-3 md:grid-cols-2">
         <Field label="Restaurant name"><input className="input" value={f.name} onChange={(e) => set("name", e.target.value)} /></Field>
         <Field label="Phone"><input className="input" value={f.phone} onChange={(e) => set("phone", e.target.value)} /></Field>
+        <Field label="Staff phone (calls are transferred here)"><input className="input" value={f.staff_phone} onChange={(e) => set("staff_phone", e.target.value)} /></Field>
         <Field label="Address"><input className="input" value={f.address} onChange={(e) => set("address", e.target.value)} /></Field>
         <Field label="About (parking, timings, policies the receptionist can share)"><textarea className="input" rows={3} value={f.about} onChange={(e) => set("about", e.target.value)} /></Field>
       </section>

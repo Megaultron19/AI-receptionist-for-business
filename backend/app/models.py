@@ -21,6 +21,7 @@ class Restaurant(Base):
     max_guests: Mapped[int] = mapped_column(Integer, default=12)
     advance_days: Mapped[int] = mapped_column(Integer, default=30)
     prep_target_minutes: Mapped[int] = mapped_column(Integer, default=5)
+    staff_phone: Mapped[str] = mapped_column(String(20), default="")
 
 
 class User(Base):
@@ -142,3 +143,17 @@ class OrderItem(Base):
     qty: Mapped[int] = mapped_column(Integer)
     notes: Mapped[str] = mapped_column(String(200), default="")
     menu_item: Mapped[MenuItem | None] = relationship(lazy="joined")
+
+
+class Call(Base):
+    __tablename__ = "calls"
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    phone: Mapped[str] = mapped_column(String(20), default="", index=True)
+    name: Mapped[str] = mapped_column(String(120), default="")
+    history: Mapped[list] = mapped_column(JSON, default=list)
+    needs_staff: Mapped[bool] = mapped_column(Boolean, default=False)
+    outcome: Mapped[str] = mapped_column(String(20), default="in progress")
+    silences: Mapped[int] = mapped_column(Integer, default=0)
+    language: Mapped[str] = mapped_column(String(10), default="en-IN")
+    started_at: Mapped[datetime] = mapped_column(DateTime, default=now, index=True)
+    ended_at: Mapped[datetime | None] = mapped_column(DateTime)
