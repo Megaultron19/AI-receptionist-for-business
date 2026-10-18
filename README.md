@@ -46,6 +46,9 @@ Tests: `cd backend && ../.venv/bin/python -m pytest -q`
 - Outside opening hours callers hear "the restaurant is closed, please call later" in English and Hindi
 - Callers asking for a person, or any AI failure, are transferred to the staff phone from Settings. Without one, the call is marked "needs callback"
 - Calls page with the outcome and transcript of every call
+- WhatsApp reminder a few hours before each booking (3 by default), sent once. Customers reply to change or cancel
+- Waitlist: when nothing is free, customers can join it. When a table frees up they get a WhatsApp message to book it
+- Inbox: chats handed to staff, with replies from the dashboard and a button to hand back to the AI. Updates when customers book, change, cancel, join the waitlist, order or pay. Problems such as failed messages are listed too
 
 ## Plivo setup
 
@@ -68,3 +71,4 @@ Callers usually have not messaged the restaurant on WhatsApp, so their booking Q
 2. Put the permanent access token, phone number ID and app secret in `.env`. Pick any random text for `WHATSAPP_VERIFY_TOKEN`.
 3. Set the webhook URL to `PUBLIC_URL/webhooks/whatsapp` with the same verify token and subscribe to `messages`.
 4. WhatsApp only allows free messages within 24 hours of the customer writing. For bookings made from the dashboard or phone, create a template with an image header and six body values in this order: name, restaurant, booking reference, date and time, guests, table. Put its name in `WHATSAPP_CONFIRMATION_TEMPLATE`.
+5. For reminders outside the 24 hour window, create a text template with five body values: name, restaurant, date and time, guests, booking reference. Put its name in `WHATSAPP_REMINDER_TEMPLATE`.

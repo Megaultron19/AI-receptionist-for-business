@@ -8,7 +8,8 @@ from sqlalchemy.orm import Session
 
 from .config import config
 from .db import now
-from . import orders
+from . import orders, waitlist
+from .inbox import add_notice
 from .models import Conversation, MenuItem, Order, Reservation
 from .reservations import BookingError, available_times, book, find, reschedule, restaurant, set_status
 
@@ -27,6 +28,8 @@ TOOLS = [
     _tool("check_availability", "Free booking times on a date for a number of guests.", {"date": DATE, "guests": {"type": "integer"}}),
     _tool("book_table", "Book a table. Only after the customer confirmed date, time, guests and name.",
           {"date": DATE, "time": TIME, "guests": {"type": "integer"}, "name": {"type": "string"}, "notes": {"type": ["string", "null"]}}),
+    _tool("join_waitlist", "Put the customer on the waitlist when nothing is free at the time they want. They get a WhatsApp message if a table frees up.",
+          {"date": DATE, "time": TIME, "guests": {"type": "integer"}, "name": {"type": "string"}}),
     _tool("my_bookings", "Upcoming bookings for this customer's phone number.", {}),
     _tool("change_booking", "Move one of this customer's bookings.", {"ref": {"type": "string"}, "date": DATE, "time": TIME, "guests": {"type": "integer"}}),
     _tool("cancel_booking", "Cancel one of this customer's bookings after they confirm.", {"ref": {"type": "string"}}),
@@ -55,6 +58,9 @@ class Turn:
             raise BookingError("I can only find bookings made from this number")
         return reservation
 
+    def notice(self, text: str) -> None:
+        add_notice(self.db, f"{text} ({'call' if self.channel == 'phone' else 'WhatsApp'} {self.convo.phone})")
+
     def order(self) -> Order | None:
         return self.db.scalar(select(Order).where(Order.phone == self.convo.phone, Order.status.in_(orders.EDITABLE),
                                                   Order.payment_status == "unpaid").order_by(Order.id.desc()))
@@ -74,6 +80,8 @@ class Turn:
             reservation = book(self.db, name=args["name"], phone=self.convo.phone, guests=args["guests"], start=start(),
                                source=self.channel, notes=args.get("notes") or "")
             self.booked_ids.append(reservation.id)
+            waitlist.mark_booked(self.db, self.convo.phone, reservation.starts_at.date())
+            self.notice(f"{reservation.name} booked {reservation.starts_at:%a %d %b %I:%M %p} for {reservation.guests}, ref {reservation.ref}")
             return {"booked": True, "ref": reservation.ref, "table": reservation.table.name, "note": "A QR confirmation is sent automatically."}
         if name == "my_bookings":
             rows = self.db.scalars(select(Reservation).where(Reservation.phone == self.convo.phone, Reservation.status == "confirmed",
@@ -82,10 +90,16 @@ class Turn:
         if name == "change_booking":
             reservation = reschedule(self.db, self.own(args["ref"]), guests=args["guests"], start=start())
             self.booked_ids.append(reservation.id)
+            self.notice(f"{reservation.name} moved booking {reservation.ref} to {reservation.starts_at:%a %d %b %I:%M %p}, {reservation.guests} guests")
             return {"changed": True, "ref": reservation.ref, "when": reservation.starts_at.strftime("%a %d %b %H:%M")}
         if name == "cancel_booking":
-            set_status(self.db, self.own(args["ref"]), "cancelled")
+            reservation = set_status(self.db, self.own(args["ref"]), "cancelled")
+            self.notice(f"{reservation.name} cancelled booking {reservation.ref} for {reservation.starts_at:%a %d %b %I:%M %p}")
             return {"cancelled": True}
+        if name == "join_waitlist":
+            entry = waitlist.join(self.db, name=args["name"], phone=self.convo.phone, guests=args["guests"], wanted_at=start())
+            self.notice(f"{entry.name} joined the waitlist for {entry.wanted_at:%a %d %b %I:%M %p}, {entry.guests} guests")
+            return {"on_waitlist": True}
         if name == "get_menu":
             items = self.db.scalars(select(MenuItem).where(MenuItem.available).order_by(MenuItem.category, MenuItem.name))
             return [{"dish_id": i.id, "dish": i.name, "also_called": i.other_names, "category": i.category, "price": f"Rs {i.price}", "veg": i.veg, "about": i.description} for i in items]
@@ -112,12 +126,15 @@ class Turn:
         if name == "confirm_order":
             order = orders.set_status(self.db, self.current_order(), "confirmed")
             self.order_ids.append(order.id)
+            self.notice(f"{order.name} confirmed food order {order.ref}, Rs {order.total}")
             return {"confirmed": True, "note": "The bill is sent automatically."}
         if name == "cancel_order":
-            orders.set_status(self.db, self.current_order(), "cancelled")
+            order = orders.set_status(self.db, self.current_order(), "cancelled")
+            self.notice(f"{order.name} cancelled food order {order.ref}")
             return {"cancelled": True}
         if name == "talk_to_staff":
             self.convo.needs_staff = True
+            self.notice(f"{self.convo.name or self.convo.phone} needs staff: {args['reason']}")
             return {"handed_over": True}
         return {"error": "unknown tool"}
 
@@ -177,7 +194,7 @@ def reply(db: Session, convo, text: str, channel: str = "whatsapp") -> tuple[str
     for _ in range(MAX_ROUNDS):
         db.commit()
         response = client().beta.messages.create(model=model, max_tokens=2000, system=system, tools=TOOLS,
-                                                 messages=history, output_config={"effort": "low"}, **extra)
+                                                 messages=[{"role": m["role"], "content": m["content"]} for m in history], output_config={"effort": "low"}, **extra)
         history.append({"role": "assistant", "content": [b.model_dump(mode="json", exclude_none=True) for b in response.content]})
         answer = " ".join(b.text for b in response.content if b.type == "text").strip()
         calls = [b for b in response.content if b.type == "tool_use"]

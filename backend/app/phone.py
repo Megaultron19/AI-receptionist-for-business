@@ -12,6 +12,7 @@ from .auth import current_user
 from .config import config
 from .confirmations import send_confirmation
 from .db import Session, get_db, now
+from .inbox import add_notice, transcript
 from .models import Call
 from .orders import send_order_confirmation
 from .reservations import BookingError, is_open, normalize_phone, restaurant
@@ -107,6 +108,8 @@ async def turn(request: Request, background: BackgroundTasks):
         if call.needs_staff:
             call.outcome = "transferred" if staff_phone else "needs callback"
             db.commit()
+            if not staff_phone:
+                add_notice(db, f"Call back {call.phone or 'a caller with a hidden number'}, they wanted to talk to staff")
             if staff_phone:
                 return xml(speak(said or "Connecting you to our staff."), transfer(staff_phone))
             return xml(speak("Our staff will call you back soon. Thank you."), "<Hangup/>")
@@ -127,17 +130,6 @@ async def hangup(request: Request):
             db.commit()
     return {"ok": True}
 
-
-def transcript(history: list) -> list[dict]:
-    lines = []
-    for m in history:
-        if m["role"] == "user" and isinstance(m["content"], str):
-            lines.append({"who": "caller", "text": m["content"]})
-        elif m["role"] == "assistant":
-            text = " ".join(b.get("text", "") for b in m["content"] if b.get("type") == "text").strip()
-            if text:
-                lines.append({"who": "receptionist", "text": text})
-    return lines
 
 
 @router.get("/api/calls")

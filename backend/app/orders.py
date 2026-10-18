@@ -171,6 +171,8 @@ def send(db: Session, order: Order, message: str, kind: str) -> None:
 
 
 def notify_paid(db: Session, order: Order) -> None:
+    from .inbox import add_notice
+    add_notice(db, f"Order {order.ref} paid online, Rs {order.total}")
     if order.phone:
         send(db, order, f"Payment of Rs {order.total} received for order {order.ref}. Thank you!", "whatsapp_payment")
 

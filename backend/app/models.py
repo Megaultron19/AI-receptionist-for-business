@@ -87,6 +87,7 @@ class Reservation(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=now)
     qr_hash: Mapped[str] = mapped_column(String(64), default="", index=True)
     checked_in_at: Mapped[datetime | None] = mapped_column(DateTime)
+    reminder_sent_at: Mapped[datetime | None] = mapped_column(DateTime)
     table: Mapped[DiningTable | None] = relationship(lazy="joined")
 
 
@@ -157,3 +158,22 @@ class Call(Base):
     language: Mapped[str] = mapped_column(String(10), default="en-IN")
     started_at: Mapped[datetime] = mapped_column(DateTime, default=now, index=True)
     ended_at: Mapped[datetime | None] = mapped_column(DateTime)
+
+
+class Notice(Base):
+    __tablename__ = "notices"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    text: Mapped[str] = mapped_column(Text)
+    seen: Mapped[bool] = mapped_column(Boolean, default=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=now, index=True)
+
+
+class WaitlistEntry(Base):
+    __tablename__ = "waitlist"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    name: Mapped[str] = mapped_column(String(120))
+    phone: Mapped[str] = mapped_column(String(20), index=True)
+    guests: Mapped[int] = mapped_column(Integer)
+    wanted_at: Mapped[datetime] = mapped_column(DateTime, index=True)
+    status: Mapped[str] = mapped_column(String(12), default="waiting")
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=now)

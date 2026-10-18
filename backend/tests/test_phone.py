@@ -44,7 +44,7 @@ def test_booking_by_phone(wa, claude, lunchtime):
         assert db.get(Call, "call-1").outcome == "booked"
     post("hangup")
     calls = client().get("/api/calls").json()
-    assert calls[0]["outcome"] == "booked" and calls[0]["transcript"][0] == {"who": "caller", "text": "book a table for two at 8 pm, name Ravi"}
+    assert calls[0]["outcome"] == "booked" and calls[0]["transcript"][0] == {"who": "customer", "text": "book a table for two at 8 pm, name Ravi"}
 
 
 def test_hindi_reply_switches_language(wa, claude, lunchtime):

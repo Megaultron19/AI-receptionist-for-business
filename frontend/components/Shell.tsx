@@ -3,6 +3,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { createContext, ReactNode, useContext, useEffect, useState } from "react";
 import { api } from "@/lib/api";
+import { useApi } from "@/lib/useApi";
 
 type Me = { username: string; role: string };
 const MeContext = createContext<Me>({ username: "", role: "staff" });
@@ -10,6 +11,7 @@ export const useMe = () => useContext(MeContext);
 
 const LINKS = [
   { href: "/", label: "Today" },
+  { href: "/inbox/", label: "Inbox" },
   { href: "/reservations/", label: "Reservations" },
   { href: "/orders/", label: "Orders" },
   { href: "/checkin/", label: "Check-in" },
@@ -23,6 +25,7 @@ export function Shell({ children }: { children: ReactNode }) {
   const router = useRouter();
   const path = usePathname();
   const [me, setMe] = useState<Me | null>(null);
+  const inbox = useApi<{ count: number }>(me ? "/api/inbox/count" : null, 30000);
 
   useEffect(() => {
     api<Me>("/api/auth/me").then(setMe).catch(() => router.replace("/login/"));
@@ -38,6 +41,7 @@ export function Shell({ children }: { children: ReactNode }) {
           <Link key={l.href} href={l.href}
             className={`rounded px-3 py-1.5 text-sm ${(l.href === "/" ? path === "/" : path.startsWith(l.href)) ? "bg-orange-50 font-medium text-orange-700" : "text-stone-600 hover:bg-stone-100"}`}>
             {l.label}
+            {l.href === "/inbox/" && !!inbox.data?.count && <span className="ml-1 rounded-full bg-red-600 px-1.5 text-xs text-white">{inbox.data.count}</span>}
           </Link>
         ))}
         <span className="ml-auto text-sm text-stone-500">{me.username}</span>

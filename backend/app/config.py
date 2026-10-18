@@ -22,6 +22,8 @@ class Config(BaseSettings):
     whatsapp_verify_token: str = ""
     whatsapp_confirmation_template: str = ""
     whatsapp_template_language: str = "en"
+    whatsapp_reminder_template: str = ""
+    reminder_hours: int = 3
 
     plivo_webhook_key: str = ""
     plivo_voice: str = "Polly.Aditi"

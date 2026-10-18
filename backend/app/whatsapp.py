@@ -43,11 +43,12 @@ def send_image(to: str, media_id: str, caption: str) -> None:
                             "image": {"id": media_id, "caption": caption[:1024]}})
 
 
-def send_template(to: str, media_id: str, params: list[str]) -> None:
-    components = [{"type": "header", "parameters": [{"type": "image", "image": {"id": media_id}}]},
-                  {"type": "body", "parameters": [{"type": "text", "text": p} for p in params]}]
+def send_template(to: str, name: str, params: list[str], image_id: str | None = None) -> None:
+    components = [{"type": "body", "parameters": [{"type": "text", "text": p} for p in params]}]
+    if image_id:
+        components.insert(0, {"type": "header", "parameters": [{"type": "image", "image": {"id": image_id}}]})
     _post("messages", json={"messaging_product": "whatsapp", "to": to.lstrip("+"), "type": "template",
-                            "template": {"name": config().whatsapp_confirmation_template,
+                            "template": {"name": name,
                                          "language": {"code": config().whatsapp_template_language}, "components": components}})
 
 
