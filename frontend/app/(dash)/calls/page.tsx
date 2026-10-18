@@ -24,7 +24,7 @@ export default function CallsPage() {
             {open === c.id && (
               <div className="mt-2 space-y-1 text-sm">
                 {c.transcript.map((line, n) => (
-                  <p key={n} className={line.who === "caller" ? "" : "text-orange-800"}><b>{line.who === "caller" ? "Caller" : "Receptionist"}:</b> {line.text}</p>
+                  <p key={n} className={line.who === "customer" ? "" : "text-orange-800"}><b>{line.who === "customer" ? "Caller" : "Receptionist"}:</b> {line.text}</p>
                 ))}
                 {c.transcript.length === 0 && <p className="text-stone-500">Nothing was said.</p>}
               </div>

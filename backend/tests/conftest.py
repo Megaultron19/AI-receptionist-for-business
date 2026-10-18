@@ -69,7 +69,7 @@ class FakeWhatsApp:
     def send_image(self, to, media_id, caption):
         self.sent.append(("image", to, caption))
 
-    def send_template(self, to, media_id, params):
+    def send_template(self, to, name, params, image_id=None):
         self.sent.append(("template", to, params))
 
 

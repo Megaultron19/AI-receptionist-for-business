@@ -1,6 +1,7 @@
 import hashlib
 import io
 import secrets
+from datetime import timedelta
 
 import segno
 from sqlalchemy import select
@@ -50,7 +51,8 @@ def send_confirmation(reservation_id: int) -> None:
             if free_window:
                 whatsapp.send_image(reservation.phone, media_id, caption)
             elif whatsapp.config().whatsapp_confirmation_template:
-                whatsapp.send_template(reservation.phone, media_id, [name, place, ref, when, guests, table])
+                whatsapp.send_template(reservation.phone, whatsapp.config().whatsapp_confirmation_template,
+                                       [name, place, ref, when, guests, table], image_id=media_id)
             else:
                 raise whatsapp.WhatsAppError("customer has not messaged in 24 hours and no confirmation template is set")
         except Exception as e:
@@ -73,3 +75,28 @@ def check_in(db: Session, code: str) -> dict:
     reservation.status, reservation.checked_in_at = "arrived", now()
     db.commit()
     return {"ok": True, "message": "Checked in", **info}
+
+
+def send_reminders() -> None:
+    hours = timedelta(hours=whatsapp.config().reminder_hours)
+    with DbSession() as db:
+        due = [r for r in db.scalars(select(Reservation).where(Reservation.status == "confirmed", Reservation.reminder_sent_at.is_(None),
+                                                               Reservation.starts_at > now(), Reservation.starts_at <= now() + hours))
+               if r.created_at <= r.starts_at - hours]
+        for reservation in due:
+            reservation.reminder_sent_at = now()
+        db.commit()
+        for reservation in due:
+            name, place, ref, when, guests, _ = details(db, reservation)
+            free_window = whatsapp.can_message_freely(db, reservation.phone)
+            db.commit()
+            try:
+                if free_window:
+                    whatsapp.send_text(reservation.phone, f"Reminder: your table at {place} is booked for {when}, {guests} guests. "
+                                                          f"Booking {ref}. Reply here if you need to change or cancel.")
+                elif whatsapp.config().whatsapp_reminder_template:
+                    whatsapp.send_template(reservation.phone, whatsapp.config().whatsapp_reminder_template, [name, place, when, guests, ref])
+                else:
+                    raise whatsapp.WhatsAppError("customer has not messaged in 24 hours and no reminder template is set")
+            except Exception as e:
+                whatsapp.log_failure(db, "whatsapp_reminder", f"Booking {ref} for {reservation.phone}: {e}")

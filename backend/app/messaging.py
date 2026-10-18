@@ -8,6 +8,7 @@ from sqlalchemy.exc import IntegrityError
 from . import agent, whatsapp
 from .config import config
 from .confirmations import send_confirmation
+from .inbox import add_notice
 from .orders import send_order_confirmation
 from .db import Session, now
 from .models import Conversation, SeenMessage
@@ -67,6 +68,9 @@ def handle_message(message: dict, profile_name: str) -> None:
         db.commit()
         convo = db.get(Conversation, phone)
         if convo.needs_staff:
+            if text:
+                convo.history = list(convo.history) + [{"role": "user", "content": text}]
+                db.commit()
             return
         if not text:
             answer = "Sorry, I can only read text messages. Please type your message."
@@ -77,6 +81,7 @@ def handle_message(message: dict, profile_name: str) -> None:
             except Exception as e:
                 convo.needs_staff = True
                 whatsapp.log_failure(db, "ai_reply", f"{phone}: {e}")
+                add_notice(db, f"Chat with {convo.name or phone} needs staff, the AI could not reply")
                 answer = "Sorry, I am having trouble right now. Our staff will reply here soon."
         db.commit()
     try:
