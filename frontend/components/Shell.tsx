@@ -13,6 +13,7 @@ const LINKS = [
   { href: "/reservations/", label: "Reservations" },
   { href: "/orders/", label: "Orders" },
   { href: "/checkin/", label: "Check-in" },
+  { href: "/calls/", label: "Calls" },
   { href: "/tables/", label: "Tables" },
   { href: "/menu/", label: "Menu" },
   { href: "/settings/", label: "Settings", owner: true },

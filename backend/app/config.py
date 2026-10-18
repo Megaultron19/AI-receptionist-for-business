@@ -23,6 +23,9 @@ class Config(BaseSettings):
     whatsapp_confirmation_template: str = ""
     whatsapp_template_language: str = "en"
 
+    plivo_webhook_key: str = ""
+    plivo_voice: str = "Polly.Aditi"
+
     razorpay_key_id: str = ""
     razorpay_key_secret: str = ""
     razorpay_webhook_secret: str = ""
