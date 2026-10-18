@@ -8,6 +8,7 @@ type Line = { menu_item_id: number | null; name?: string; price?: number; qty: n
 type Order = {
   ref: string; name: string; phone: string; status: string; payment_status: string; total: number; source: string;
   booking: string | null; booking_at: string | null; table: string | null; start_by: string | null; ready_note: string; items: Line[];
+  payment_link: string; payment_id: string;
 };
 type Dish = { id: number; name: string; price: number; available: boolean };
 
@@ -46,7 +47,10 @@ export default function OrdersPage() {
               </div>
               <div className="text-right text-xs">
                 <div className="font-medium capitalize">{o.status}</div>
-                <div className={o.payment_status === "paid" ? "text-green-700" : "text-red-700"}>{o.payment_status}</div>
+                <div className={o.payment_status === "paid" ? "text-green-700" : "text-red-700"}>
+                  {o.payment_status}{o.payment_id && <span className="text-stone-500"> ({o.payment_id})</span>}
+                </div>
+                {o.payment_link && o.payment_status !== "paid" && <a className="text-orange-700 underline" href={o.payment_link} target="_blank">payment link</a>}
               </div>
             </div>
             <ul className="my-3 space-y-0.5 text-sm">
@@ -61,7 +65,10 @@ export default function OrdersPage() {
             <div className="flex flex-wrap gap-1">
               {NEXT[o.status] && <button className="btn" onClick={() => run(`/api/orders/${o.ref}/status?status=${NEXT[o.status]}`)}>{LABEL[NEXT[o.status]]}</button>}
               {o.status === "open" && <button className="btn" onClick={() => run(`/api/orders/${o.ref}/status?status=confirmed`)}>Confirm</button>}
-              {o.payment_status !== "paid" && o.status !== "cancelled" && <button className="btn-light" onClick={() => run(`/api/orders/${o.ref}/paid`)}>Mark paid</button>}
+              {o.payment_status !== "paid" && o.status !== "cancelled" && <>
+                {o.payment_link && <button className="btn-light" onClick={() => run(`/api/orders/${o.ref}/check-payment`)}>Check payment</button>}
+                <button className="btn-light" onClick={() => window.confirm("Mark this order as paid in cash?") && run(`/api/orders/${o.ref}/paid`)}>Paid in cash</button>
+              </>}
               {o.payment_status !== "paid" && ["open", "confirmed"].includes(o.status) && <>
                 <button className="btn-light" onClick={() => setEditing(o)}>Edit</button>
                 <button className="btn-light" onClick={() => window.confirm(`Cancel order ${o.ref}?`) && run(`/api/orders/${o.ref}/status?status=cancelled`)}>Cancel</button>

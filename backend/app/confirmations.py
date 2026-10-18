@@ -43,9 +43,11 @@ def send_confirmation(reservation_id: int) -> None:
         name, place, ref, when, guests, table = details(db, reservation)
         caption = (f"Your table at {place} is booked.\nBooking: {ref}\nWhen: {when}\nGuests: {guests}\nTable: {table}\n"
                    "Show this QR code at the door.")
+        free_window = whatsapp.can_message_freely(db, reservation.phone)
+        db.commit()
         try:
             media_id = whatsapp.upload_image(png)
-            if whatsapp.can_message_freely(db, reservation.phone):
+            if free_window:
                 whatsapp.send_image(reservation.phone, media_id, caption)
             elif whatsapp.config().whatsapp_confirmation_template:
                 whatsapp.send_template(reservation.phone, media_id, [name, place, ref, when, guests, table])
