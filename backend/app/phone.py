@@ -7,7 +7,7 @@ from fastapi.responses import Response
 from sqlalchemy import select
 from sqlalchemy.orm import Session as DbSession
 
-from . import agent, whatsapp
+from . import agent, receptionist, whatsapp
 from .auth import current_user
 from .config import config
 from .confirmations import send_confirmation
@@ -56,7 +56,7 @@ async def answer(request: Request):
     data = await form(request)
     with Session() as db:
         r = restaurant(db)
-        if not is_open(r, now()):
+        if not is_open(r, now()) or not receptionist.is_on():
             return xml(speak(f"Thank you for calling {r.name}. The restaurant is closed right now. Please call later."),
                        speak("अभी रेस्टोरेंट बंद है। कृपया बाद में कॉल करें।"), "<Hangup/>")
         try:

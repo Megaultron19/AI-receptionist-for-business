@@ -4,6 +4,7 @@ import { today } from "@/lib/api";
 import { useApi } from "@/lib/useApi";
 import { Booking, BookingForm, BookingTable } from "@/components/Bookings";
 import { ErrorBox, Header } from "@/components/ui";
+import { StartCard } from "@/components/StartCard";
 
 export default function TodayPage() {
   const list = useApi<Booking[]>(`/api/reservations?day=${today()}`, 30000);
@@ -11,6 +12,7 @@ export default function TodayPage() {
   const active = (list.data ?? []).filter((b) => b.status === "confirmed" || b.status === "arrived");
   return (
     <div>
+      <StartCard />
       <Header title="Today">
         <span className="text-sm text-stone-500">{active.length} bookings, {active.reduce((n, b) => n + b.guests, 0)} guests</span>
         <button className="btn" onClick={() => setAdding(true)}>New booking</button>

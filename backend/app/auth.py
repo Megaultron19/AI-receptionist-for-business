@@ -14,6 +14,9 @@ from .models import LoginSession, User
 router = APIRouter(prefix="/api/auth")
 COOKIE = "session"
 ROLES = ("owner", "staff")
+MAX_FAILED_LOGINS = 5
+LOCKOUT = timedelta(minutes=15)
+failed_logins: dict[str, list] = {}
 
 
 def hash_password(password: str) -> str:
@@ -65,15 +68,27 @@ class LoginIn(BaseModel):
     password: str
 
 
+def too_many_attempts(username: str) -> bool:
+    cutoff = now() - LOCKOUT
+    failed_logins[username] = [t for t in failed_logins.get(username, []) if t > cutoff]
+    return len(failed_logins[username]) >= MAX_FAILED_LOGINS
+
+
 @router.post("/login")
-def login(body: LoginIn, response: Response, db: Session = Depends(get_db)):
-    user = db.scalar(select(User).where(User.username == body.username.lower()))
+def login(body: LoginIn, request: Request, response: Response, db: Session = Depends(get_db)):
+    username = body.username.lower()
+    if too_many_attempts(username):
+        raise HTTPException(429, "Too many wrong passwords. Try again in 15 minutes.")
+    user = db.scalar(select(User).where(User.username == username))
     if not user or not user.active or not check_password(body.password, user.password_hash):
+        failed_logins.setdefault(username, []).append(now())
         raise HTTPException(401, "Wrong username or password")
+    failed_logins.pop(username, None)
     token = secrets.token_urlsafe(32)
     db.add(LoginSession(token_hash=token_hash(token), user_id=user.id, expires_at=now() + timedelta(days=7)))
     db.commit()
-    response.set_cookie(COOKIE, token, httponly=True, samesite="strict", max_age=7 * 86400)
+    secure = request.headers.get("X-Forwarded-Proto", request.url.scheme) == "https"
+    response.set_cookie(COOKIE, token, httponly=True, samesite="strict", secure=secure, max_age=7 * 86400)
     return {"username": user.username, "role": user.role}
 
 

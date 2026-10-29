@@ -1,4 +1,5 @@
 import os
+import sqlite3
 from datetime import datetime
 
 from sqlalchemy import create_engine, event, inspect, literal
@@ -57,3 +58,17 @@ def get_db():
 
 def now() -> datetime:
     return datetime.now(config().tz).replace(tzinfo=None, microsecond=0)
+
+
+def backup_database() -> None:
+    folder = os.path.join(config().data_dir, "backups")
+    os.makedirs(folder, exist_ok=True)
+    target = os.path.join(folder, f"restaurant-{now():%Y-%m-%d}.db")
+    if not os.path.exists(target):
+        source, copy = sqlite3.connect(os.path.join(config().data_dir, "restaurant.db")), sqlite3.connect(target)
+        with copy:
+            source.backup(copy)
+        source.close()
+        copy.close()
+    for old in sorted(f for f in os.listdir(folder) if f.startswith("restaurant-"))[:-config().backups_to_keep]:
+        os.remove(os.path.join(folder, old))
