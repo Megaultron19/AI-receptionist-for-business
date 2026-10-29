@@ -6,7 +6,7 @@ import threading
 from fastapi import APIRouter, Depends, HTTPException
 
 from . import razorpay, whatsapp
-from .auth import current_user
+from .auth import current_user, owner_only
 from .config import config
 from .db import Session
 
@@ -95,4 +95,17 @@ def stop(_=Depends(current_user)):
     with lock:
         state["on"] = False
         stop_tunnel()
+    return status()
+
+
+@router.post("/reload")
+def reload_keys(_=Depends(owner_only)):
+    with lock:
+        config.cache_clear()
+        if state["on"]:
+            stop_tunnel()
+            try:
+                start_tunnel()
+            except (RuntimeError, OSError) as e:
+                raise HTTPException(400, str(e))
     return status()

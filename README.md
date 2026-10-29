@@ -52,6 +52,8 @@ Tests: `cd backend && ../.venv/bin/python -m pytest -q`
 - Desktop icon on Windows and Mac starts everything. The manager logs in and presses Start on the Today page
 - Start also opens the Cloudflare Tunnel so WhatsApp, Plivo and Razorpay can reach the restaurant computer, and restarts it if it drops
 - Stop turns the receptionist off: WhatsApp messages are ignored and callers hear the closed message
+- Reload keys button for the owner after editing `backend/.env`, no restart needed
+- Door staff can seat walk-ins from the Tables page. The table is blocked for the usual table time so it can't be booked, with a button to free it when the guests leave. Refused if the table has a booking coming up
 - Daily database backup in `backend/data/backups`, last 14 days kept
 - Login is locked for 15 minutes after 5 wrong passwords. Session cookies are secure when used over the tunnel
 

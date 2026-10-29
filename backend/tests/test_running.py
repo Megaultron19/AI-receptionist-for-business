@@ -5,7 +5,8 @@ from fastapi.testclient import TestClient
 
 from app import receptionist
 from app.config import config
-from app.db import Session, backup_database
+from app.db import Session, backup_database, now
+from app.models import Reservation
 from app.main import app
 from app.models import Failure
 
@@ -78,3 +79,34 @@ def test_daily_backup(monkeypatch):
     assert len(files) == 14 and files[0] == "restaurant-2020-01-08.db"
     import sqlite3
     assert sqlite3.connect(os.path.join(folder, files[-1])).execute("select count(*) from tables").fetchone()[0] == 4
+
+
+def test_reload_keys_without_restart(monkeypatch):
+    c = client()
+    assert c.get("/api/receptionist").json()["ready"]["Phone"]
+    monkeypatch.setenv("PLIVO_WEBHOOK_KEY", "")
+    assert client("door", "door-pass-1").post("/api/receptionist/reload").status_code == 403
+    assert not c.post("/api/receptionist/reload").json()["ready"]["Phone"]
+    monkeypatch.undo()
+    config.cache_clear()
+
+
+def test_door_staff_seats_walk_in():
+    door = client("door", "door-pass-1")
+    tables = {t["name"]: t["id"] for t in door.get("/api/tables").json()}
+    block = door.post(f"/api/tables/{tables['T3']}/walk-in").json()
+    assert block["reason"] == "Walk-in"
+    assert "already blocked" in door.post(f"/api/tables/{tables['T3']}/walk-in").json()["detail"]
+    door.delete(f"/api/blocks/{block['id']}")
+    assert door.post(f"/api/tables/{tables['T3']}/walk-in").status_code == 200
+
+
+def test_walk_in_refused_when_table_is_booked():
+    from datetime import timedelta
+    start = now() + timedelta(minutes=30)
+    with Session() as db:
+        db.add(Reservation(ref="WALK01", name="Meera", phone="+919876500090", guests=2, starts_at=start,
+                           ends_at=start + timedelta(minutes=90), table_id=1))
+        db.commit()
+    r = client("door", "door-pass-1").post("/api/tables/1/walk-in")
+    assert r.status_code == 409 and "booking for Meera" in r.json()["detail"]
