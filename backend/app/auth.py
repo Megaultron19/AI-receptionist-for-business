@@ -5,7 +5,7 @@ from datetime import timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from pydantic import BaseModel
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
 from .db import get_db, now
@@ -89,7 +89,30 @@ def login(body: LoginIn, request: Request, response: Response, db: Session = Dep
     db.commit()
     secure = request.headers.get("X-Forwarded-Proto", request.url.scheme) == "https"
     response.set_cookie(COOKIE, token, httponly=True, samesite="strict", secure=secure, max_age=7 * 86400)
-    return {"username": user.username, "role": user.role}
+    return me_out(user)
+
+
+def me_out(user: User) -> dict:
+    return {"username": user.username, "role": user.role, "must_change_password": user.must_change_password}
+
+
+class PasswordChangeIn(BaseModel):
+    current: str
+    new: str
+
+
+@router.post("/password")
+def change_password(body: PasswordChangeIn, request: Request, user: User = Depends(current_user), db: Session = Depends(get_db)):
+    if not check_password(body.current, user.password_hash):
+        raise HTTPException(400, "Current password is wrong")
+    if len(body.new) < 8:
+        raise HTTPException(400, "New password must be at least 8 characters")
+    if body.new == body.current:
+        raise HTTPException(400, "Choose a password different from the current one")
+    user.password_hash, user.must_change_password = hash_password(body.new), False
+    db.execute(delete(LoginSession).where(LoginSession.user_id == user.id, LoginSession.token_hash != token_hash(request.cookies.get(COOKIE, ""))))
+    db.commit()
+    return me_out(user)
 
 
 @router.post("/logout")
@@ -104,4 +127,4 @@ def logout(request: Request, response: Response, db: Session = Depends(get_db)):
 
 @router.get("/me")
 def me(user: User = Depends(current_user)):
-    return {"username": user.username, "role": user.role}
+    return me_out(user)
