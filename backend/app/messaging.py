@@ -5,7 +5,7 @@ from fastapi import APIRouter, BackgroundTasks, HTTPException, Request
 from fastapi.responses import PlainTextResponse
 from sqlalchemy.exc import IntegrityError
 
-from . import agent, whatsapp
+from . import agent, receptionist, whatsapp
 from .config import config
 from .confirmations import send_confirmation
 from .inbox import add_notice
@@ -31,6 +31,8 @@ async def receive(request: Request, background: BackgroundTasks):
     body = await request.body()
     if not whatsapp.valid_signature(body, request.headers.get("X-Hub-Signature-256", "")):
         raise HTTPException(403, "Bad signature")
+    if not receptionist.is_on():
+        return {"ok": True}
     for entry in json.loads(body).get("entry", []):
         for change in entry.get("changes", []):
             value = change.get("value", {})

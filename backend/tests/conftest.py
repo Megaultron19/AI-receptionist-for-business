@@ -29,6 +29,9 @@ def fresh_db():
         create_user(db, "owner", "owner-pass-1", "owner")
         create_user(db, "door", "door-pass-1", "staff")
         db.commit()
+    from app import auth, receptionist
+    receptionist.state["on"] = True
+    auth.failed_logins.clear()
     yield
 
 

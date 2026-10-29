@@ -25,6 +25,10 @@ class Config(BaseSettings):
     whatsapp_reminder_template: str = ""
     reminder_hours: int = 3
 
+    cloudflare_tunnel_token: str = ""
+    cloudflared_path: str = "cloudflared"
+    backups_to_keep: int = 14
+
     plivo_webhook_key: str = ""
     plivo_voice: str = "Polly.Aditi"
 

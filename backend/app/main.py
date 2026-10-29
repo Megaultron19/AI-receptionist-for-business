@@ -2,10 +2,10 @@ import os
 import threading
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.staticfiles import StaticFiles
 
-from . import auth, checkin, inbox, jobs, menu, messaging, orders, payments, phone, reservations, restaurant, tables, waitlist
+from . import auth, checkin, inbox, jobs, menu, messaging, orders, payments, phone, receptionist, reservations, restaurant, tables, waitlist
 from .config import config
 from .db import engine, migrate
 
@@ -18,11 +18,19 @@ async def lifespan(_):
     jobs.start(stop)
     yield
     stop.set()
+    receptionist.stop_tunnel()
 
 
 app = FastAPI(title="Restaurant Receptionist", docs_url=None, redoc_url=None, lifespan=lifespan)
-for module in (auth, menu, tables, reservations, orders, restaurant, messaging, checkin, payments, phone, inbox, waitlist):
+for module in (auth, menu, tables, reservations, orders, restaurant, messaging, checkin, payments, phone, inbox, waitlist, receptionist):
     app.include_router(module.router)
+
+
+@app.middleware("http")
+async def security_headers(request: Request, call_next):
+    response = await call_next(request)
+    response.headers.update({"X-Frame-Options": "DENY", "X-Content-Type-Options": "nosniff", "Referrer-Policy": "same-origin"})
+    return response
 
 
 @app.get("/health")

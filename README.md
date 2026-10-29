@@ -3,7 +3,7 @@
 Phone and WhatsApp receptionist for restaurants, with a simple dashboard for the restaurant team.
 Each restaurant runs its own copy on its own computer with its own database and settings.
 
-## Run it for development
+## Run it for development (your own computer)
 
 Needs Python 3.12+ and Node 22.
 
@@ -22,7 +22,7 @@ Copy `backend/.env.example` to `backend/.env` and fill in the keys you have. Any
 
 Tests: `cd backend && ../.venv/bin/python -m pytest -q`
 
-## What works so far
+## What it does
 
 - Login for the owner and door staff
 - Menu: add, edit, delete dishes, mark out of stock
@@ -49,26 +49,12 @@ Tests: `cd backend && ../.venv/bin/python -m pytest -q`
 - WhatsApp reminder a few hours before each booking (3 by default), sent once. Customers reply to change or cancel
 - Waitlist: when nothing is free, customers can join it. When a table frees up they get a WhatsApp message to book it
 - Inbox: chats handed to staff, with replies from the dashboard and a button to hand back to the AI. Updates when customers book, change, cancel, join the waitlist, order or pay. Problems such as failed messages are listed too
+- Desktop icon on Windows and Mac starts everything. The manager logs in and presses Start on the Today page
+- Start also opens the Cloudflare Tunnel so WhatsApp, Plivo and Razorpay can reach the restaurant computer, and restarts it if it drops
+- Stop turns the receptionist off: WhatsApp messages are ignored and callers hear the closed message
+- Daily database backup in `backend/data/backups`, last 14 days kept
+- Login is locked for 15 minutes after 5 wrong passwords. Session cookies are secure when used over the tunnel
 
-## Plivo setup
+## Setting up a new restaurant
 
-1. Buy an Indian number in the restaurant's Plivo account.
-2. Pick a long random text and put it in `PLIVO_WEBHOOK_KEY`.
-3. Create a Plivo application with answer URL `PUBLIC_URL/webhooks/plivo/answer?key=YOUR_KEY` and hangup URL `PUBLIC_URL/webhooks/plivo/hangup?key=YOUR_KEY`, both POST, and attach the number to it.
-4. Put the staff mobile number in Settings so callers can be transferred.
-
-Callers usually have not messaged the restaurant on WhatsApp, so their booking QR goes out through the confirmation template. Food bills for callers are only sent if they messaged in the last 24 hours, otherwise the Orders page has everything.
-
-## Razorpay setup
-
-1. In the restaurant's Razorpay dashboard, create API keys and put them in `RAZORPAY_KEY_ID` and `RAZORPAY_KEY_SECRET`.
-2. That is enough. The app checks unpaid links every minute.
-3. Optional, for instant updates: add a webhook to `PUBLIC_URL/webhooks/razorpay` for the `payment_link.paid` event, and put its secret in `RAZORPAY_WEBHOOK_SECRET`.
-
-## WhatsApp setup
-
-1. In Meta Business, create a WhatsApp app and add the restaurant number.
-2. Put the permanent access token, phone number ID and app secret in `.env`. Pick any random text for `WHATSAPP_VERIFY_TOKEN`.
-3. Set the webhook URL to `PUBLIC_URL/webhooks/whatsapp` with the same verify token and subscribe to `messages`.
-4. WhatsApp only allows free messages within 24 hours of the customer writing. For bookings made from the dashboard or phone, create a template with an image header and six body values in this order: name, restaurant, booking reference, date and time, guests, table. Put its name in `WHATSAPP_CONFIRMATION_TEMPLATE`.
-5. For reminders outside the 24 hour window, create a text template with five body values: name, restaurant, date and time, guests, booking reference. Put its name in `WHATSAPP_REMINDER_TEMPLATE`.
+See [docs/SETUP.md](docs/SETUP.md).
