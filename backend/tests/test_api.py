@@ -65,3 +65,13 @@ def test_restaurant_settings():
     saved = owner.put("/api/restaurant", json={**s, "name": "Spice Route"}).json()
     assert saved["name"] == "Spice Route" and saved["hours"] == s["hours"]
     assert door.put("/api/restaurant", json=s).status_code == 403
+
+
+def test_bookings_only_one_week_ahead():
+    c = client()
+    body = {"name": "A", "phone": "9876500080", "guests": 2}
+    assert c.post("/api/reservations", json={**body, "starts_at": at("19:00", offset=7).isoformat()}).status_code == 200
+    late = c.post("/api/reservations", json={**body, "starts_at": at("19:00", offset=8).isoformat()})
+    assert late.status_code == 400 and "up to 7 days ahead" in late.json()["detail"]["message"]
+    settings = c.get("/api/restaurant").json()
+    assert c.put("/api/restaurant", json={**settings, "advance_days": 8}).status_code == 422
