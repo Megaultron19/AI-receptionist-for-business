@@ -19,15 +19,16 @@ def create_owner() -> None:
     with Session() as db:
         if db.query(User).count():
             return
-        print("\nCreate the owner login for the dashboard.")
+        print("\nCreate the owner login for the dashboard. A temporary password is fine.")
         username = input("Username: ").strip() or "owner"
         while True:
             password = getpass.getpass("Password (at least 8 characters): ")
             if len(password) >= 8 and password == getpass.getpass("Type it again: "):
                 break
             print("Passwords did not match or were too short, try again.")
-        create_user(db, username, password, "owner")
+        create_user(db, username, password, "owner").must_change_password = True
         db.commit()
+        print("The owner will be asked to choose their own password the first time they log in.")
 
 
 def windows_shortcut() -> str:

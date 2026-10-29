@@ -15,7 +15,7 @@ Plan for about two hours for the first one, mostly waiting for Meta to approve t
 
 1. Download the code as a zip from GitHub and unzip it somewhere permanent, for example `C:\Receptionist` or `~/Receptionist`.
 2. Windows: double click `setup.bat`. Mac: right click `setup.command` > Open.
-3. It installs everything, asks for the owner username and password, and puts a "Restaurant Receptionist" icon on the desktop.
+3. It installs everything, asks for the owner username and a temporary password, and puts a "Restaurant Receptionist" icon on the desktop. Give the owner the username and temporary password. The first time they log in they must choose their own password, so you never know it.
 4. Door staff logins are added later from Settings > Logins in the dashboard.
 
 To update later: replace the files with the new version (keep `backend/.env` and `backend/data`) and run setup again. The database is upgraded automatically.
@@ -85,6 +85,8 @@ Log in and set up, in this order:
 6. Open the Inbox and check nothing is listed under Problems.
 
 ## When something goes wrong
+
+- Forgotten password: double click `reset-password.bat` (Windows) or `reset-password.command` (Mac) in the app folder and type the username. It shows a temporary password, and the person picks a new one when they log in. Staff passwords can also be reset by the owner in Settings > Logins.
 
 - The Today page shows what is not set up, and the Inbox lists failed messages, payment checks and tunnel restarts.
 - Logs: `backend/data/app.log` for the app and `backend/data/tunnel.log` for the tunnel.

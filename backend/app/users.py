@@ -66,7 +66,7 @@ def set_password(user_id: int, body: PasswordIn, db: Session = Depends(get_db), 
     user = find(db, user_id, me)
     if len(body.password) < 8:
         raise HTTPException(400, "Password must be at least 8 characters")
-    user.password_hash = hash_password(body.password)
+    user.password_hash, user.must_change_password = hash_password(body.password), True
     log_out_everywhere(db, user)
     db.commit()
     return user_out(user)

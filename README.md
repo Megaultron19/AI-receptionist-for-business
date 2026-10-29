@@ -34,7 +34,8 @@ Each restaurant gets its own installation on a computer at the restaurant, with 
 - Reservations with waitlist, Orders, Calls, Menu with prices and stock, Settings
 - Tables: seats per table, mark unavailable, block time slots, seat walk-ins
 - Check-in for the door: scan the QR with a scanner gun or camera, duplicate and wrong-day scans are refused
-- Logins: the owner adds door staff and other logins, changes passwords and turns logins off
+- Logins: the owner adds door staff and other logins, resets their passwords and turns logins off. Everyone can change their own password, and anyone given a temporary password must pick their own on the next login
+- Forgotten owner password: `reset-password.bat` or `reset-password.command` on the restaurant computer gives a temporary one
 
 **Reliability and safety**
 - No double bookings, even when two requests arrive at the same moment
