@@ -40,7 +40,7 @@ function Waitlist() {
             {list.data.map((e) => (
               <tr key={e.id}>
                 <td>{e.wanted_at.slice(5, 10)} {time(e.wanted_at)}</td><td>{e.name}</td><td>{e.phone}</td><td>{e.guests}</td>
-                <td>{e.status === "offered" ? "Told a table is free" : "Waiting"}</td>
+                <td>Waiting, books automatically</td>
                 <td><button className="btn-light" onClick={async () => { await api(`/api/waitlist/${e.id}`, "DELETE"); list.reload(); }}>Remove</button></td>
               </tr>
             ))}

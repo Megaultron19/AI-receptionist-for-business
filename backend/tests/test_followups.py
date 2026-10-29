@@ -7,7 +7,7 @@ from app.confirmations import send_reminders
 from app.db import Session, now
 from app.main import app
 from app.models import Conversation, DiningTable, Failure, Reservation, WaitlistEntry
-from app.waitlist import offer_free_tables
+from app.waitlist import book_from_waitlist
 
 from .conftest import at, client, day, whatsapp_post
 
@@ -51,7 +51,7 @@ def test_reminder_template_and_skips(wa, monkeypatch):
     assert len(wa.sent) == 1 and wa.sent[0][0] == "template" and wa.sent[0][2][-1] == "R00044"
 
 
-def test_waitlist_offer_and_booking(wa, claude):
+def test_waitlist_books_one_person_per_free_table(wa, claude):
     with Session() as db:
         for t in db.query(DiningTable):
             t.available = t.name == "T1"
@@ -59,29 +59,30 @@ def test_waitlist_offer_and_booking(wa, claude):
     owner = client()
     taken = owner.post("/api/reservations", json={"name": "A", "phone": "9876500050", "guests": 2, "starts_at": at("20:00").isoformat()}).json()
     claude([("join_waitlist", {"date": str(day()), "time": "20:00", "guests": 2, "name": "Asha"})], "You are on the waitlist.")
-    c = TestClient(app)
-    whatsapp_post(c, "put me on the waitlist for 8", "w1")
-    assert owner.get("/api/waitlist").json()[0]["status"] == "waiting"
-    offer_free_tables()
-    assert len(wa.sent) == 1
+    whatsapp_post(TestClient(app), "put me on the waitlist for 8", "w1")
+    claude([("join_waitlist", {"date": str(day()), "time": "20:00", "guests": 2, "name": "Ravi"})], "You are on the waitlist.")
+    whatsapp_post(TestClient(app), "waitlist for 8 please", "w2", phone="919876500002", name="Ravi")
+    assert len(owner.get("/api/waitlist").json()) == 2
+    book_from_waitlist()
+    assert len(owner.get("/api/waitlist").json()) == 2
     owner.post(f"/api/reservations/{taken['ref']}/status?status=cancelled")
-    offer_free_tables()
-    offer_free_tables()
-    offers = [m for m in wa.sent if "is now free" in m[2]]
-    assert len(offers) == 1 and offers[0][1] == "+919876500001"
-    claude([("book_table", {"date": str(day()), "time": "20:00", "guests": 2, "name": "Asha", "notes": None})], "Booked!")
-    whatsapp_post(c, "yes book it", "w2")
+    book_from_waitlist()
+    book_from_waitlist()
     with Session() as db:
-        assert db.query(WaitlistEntry).one().status == "booked"
-    notices = owner.get("/api/inbox").json()["notices"]
-    assert "joined the waitlist" in notices[-1]["text"] and "Asha booked" in notices[0]["text"]
+        booked = db.query(Reservation).filter(Reservation.source == "waitlist").all()
+        assert [(r.name, r.phone, r.table.name) for r in booked] == [("Asha", "+919876500001", "T1")]
+        assert [e.status for e in db.query(WaitlistEntry).order_by(WaitlistEntry.id)] == ["booked", "waiting"]
+    asha = [m for m in wa.sent if m[1] == "+919876500001"]
+    assert "booked it for you" in asha[-2][2] and asha[-1][0] == "image"
+    assert not any("booked it for you" in m[2] for m in wa.sent if m[1] == "+919876500002")
+    assert "booked from the waitlist" in owner.get("/api/inbox").json()["notices"][0]["text"]
 
 
 def test_old_waitlist_entries_expire():
     with Session() as db:
         db.add(WaitlistEntry(name="Old", phone="+919876500060", guests=2, wanted_at=now() - timedelta(hours=1), status="waiting"))
         db.commit()
-    offer_free_tables()
+    book_from_waitlist()
     with Session() as db:
         assert db.query(WaitlistEntry).one().status == "expired"
 

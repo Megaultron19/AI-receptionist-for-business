@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { api } from "@/lib/api";
 import { useApi } from "@/lib/useApi";
 import { ErrorBox, Field, Header, useAction } from "@/components/ui";
+import { useMe } from "@/components/Shell";
 
 const DAYS: [string, string][] = [["mon", "Monday"], ["tue", "Tuesday"], ["wed", "Wednesday"], ["thu", "Thursday"], ["fri", "Friday"], ["sat", "Saturday"], ["sun", "Sunday"]];
 type Settings = { name: string; phone: string; address: string; about: string; hours: Record<string, string[][]>; slot_minutes: number; dining_minutes: number; max_guests: number; advance_days: number; prep_target_minutes: number; staff_phone: string };
@@ -62,6 +63,60 @@ export default function SettingsPage() {
         {done && <span className="text-sm text-green-700">Saved</span>}
         <ErrorBox text={act.error} />
       </div>
+      <Logins />
     </div>
+  );
+}
+
+type Login = { id: number; username: string; role: string; active: boolean };
+
+function Logins() {
+  const me = useMe();
+  const users = useApi<Login[]>("/api/users");
+  const [f, setF] = useState({ username: "", password: "", role: "staff" });
+  const act = useAction();
+
+  async function run(fn: () => Promise<unknown>) {
+    if (await act.run(fn)) users.reload();
+  }
+
+  return (
+    <section className="card">
+      <h2 className="mb-3 font-semibold">Logins</h2>
+      <table className="table-list mb-4">
+        <thead><tr><th>Username</th><th>Role</th><th>Status</th><th></th></tr></thead>
+        <tbody>
+          {users.data?.map((u) => (
+            <tr key={u.id} className={u.active ? "" : "text-stone-400"}>
+              <td>{u.username}</td><td>{u.role === "owner" ? "Owner" : "Staff"}</td><td>{u.active ? "Active" : "Turned off"}</td>
+              <td className="flex justify-end gap-1">{u.username !== me.username && <>
+                <button className="btn-light" onClick={() => {
+                  const password = window.prompt(`New password for ${u.username} (at least 8 characters)`);
+                  if (password) run(() => api(`/api/users/${u.id}/password`, "POST", { password }));
+                }}>Change password</button>
+                <button className="btn-light" onClick={() => run(() => api(`/api/users/${u.id}/active?active=${!u.active}`, "POST"))}>
+                  {u.active ? "Turn off" : "Turn on"}
+                </button>
+              </>}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <form className="grid gap-2 md:grid-cols-4" onSubmit={async (e) => {
+        e.preventDefault();
+        if (await act.run(() => api("/api/users", "POST", f))) { setF({ username: "", password: "", role: "staff" }); users.reload(); }
+      }}>
+        <Field label="Username"><input className="input" value={f.username} onChange={(e) => setF({ ...f, username: e.target.value })} /></Field>
+        <Field label="Password"><input className="input" type="password" value={f.password} onChange={(e) => setF({ ...f, password: e.target.value })} /></Field>
+        <Field label="Role">
+          <select className="input" value={f.role} onChange={(e) => setF({ ...f, role: e.target.value })}>
+            <option value="staff">Staff (door, bookings, orders)</option>
+            <option value="owner">Owner (everything)</option>
+          </select>
+        </Field>
+        <div className="flex items-end"><button className="btn w-full" disabled={act.busy || !f.username || f.password.length < 8}>Add login</button></div>
+      </form>
+      <div className="mt-2"><ErrorBox text={users.error || act.error} /></div>
+    </section>
   );
 }

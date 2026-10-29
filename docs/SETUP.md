@@ -16,7 +16,7 @@ Plan for about two hours for the first one, mostly waiting for Meta to approve t
 1. Download the code as a zip from GitHub and unzip it somewhere permanent, for example `C:\Receptionist` or `~/Receptionist`.
 2. Windows: double click `setup.bat`. Mac: right click `setup.command` > Open.
 3. It installs everything, asks for the owner username and password, and puts a "Restaurant Receptionist" icon on the desktop.
-4. Add door staff logins with `python -m app.cli add-user door --role staff` from the `backend` folder (use `..\.venv\Scripts\python` on Windows, `../.venv/bin/python` on Mac).
+4. Door staff logins are added later from Settings > Logins in the dashboard.
 
 To update later: replace the files with the new version (keep `backend/.env` and `backend/data`) and run setup again. The database is upgraded automatically.
 
@@ -73,6 +73,7 @@ Log in and set up, in this order:
 1. Settings: name, address, phone, staff phone, opening hours, table time, food ready target
 2. Tables: every table with its seats
 3. Menu: dishes with prices, prep time and other names customers use
+4. Settings > Logins: a login for each door staff member
 
 ## 6. Test before going live
 
