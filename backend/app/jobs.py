@@ -4,7 +4,7 @@ from . import razorpay, receptionist, whatsapp
 from .confirmations import send_reminders
 from .db import Session, backup_database
 from .orders import check_pending_payments
-from .waitlist import offer_free_tables
+from .waitlist import book_from_waitlist
 
 EVERY_SECONDS = 60
 
@@ -14,7 +14,7 @@ def run_once() -> None:
     if razorpay.enabled():
         jobs.append(check_pending_payments)
     if whatsapp.enabled():
-        jobs += [send_reminders, offer_free_tables]
+        jobs += [send_reminders, book_from_waitlist]
     for job in jobs:
         try:
             job()

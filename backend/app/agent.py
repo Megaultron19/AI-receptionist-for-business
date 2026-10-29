@@ -28,7 +28,7 @@ TOOLS = [
     _tool("check_availability", "Free booking times on a date for a number of guests.", {"date": DATE, "guests": {"type": "integer"}}),
     _tool("book_table", "Book a table. Only after the customer confirmed date, time, guests and name.",
           {"date": DATE, "time": TIME, "guests": {"type": "integer"}, "name": {"type": "string"}, "notes": {"type": ["string", "null"]}}),
-    _tool("join_waitlist", "Put the customer on the waitlist when nothing is free at the time they want. They get a WhatsApp message if a table frees up.",
+    _tool("join_waitlist", "Put the customer on the waitlist when nothing is free at the time they want. If a table frees up they are booked automatically and get the QR on WhatsApp.",
           {"date": DATE, "time": TIME, "guests": {"type": "integer"}, "name": {"type": "string"}}),
     _tool("my_bookings", "Upcoming bookings for this customer's phone number.", {}),
     _tool("change_booking", "Move one of this customer's bookings.", {"ref": {"type": "string"}, "date": DATE, "time": TIME, "guests": {"type": "integer"}}),
