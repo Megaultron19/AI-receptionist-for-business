@@ -50,7 +50,7 @@ export default function SettingsPage() {
         {num("dining_minutes", "Table time per booking (minutes)")}
         {num("slot_minutes", "Booking slot every (minutes)")}
         {num("max_guests", "Largest party online")}
-        {num("advance_days", "Book up to (days ahead)")}
+        {num("advance_days", "Book up to (days ahead, max 7)")}
         {num("prep_target_minutes", "Food ready target (minutes)")}
       </section>
       <div className="flex items-center gap-3">

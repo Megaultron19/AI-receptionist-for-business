@@ -19,7 +19,7 @@ class Restaurant(Base):
     slot_minutes: Mapped[int] = mapped_column(Integer, default=30)
     dining_minutes: Mapped[int] = mapped_column(Integer, default=90)
     max_guests: Mapped[int] = mapped_column(Integer, default=12)
-    advance_days: Mapped[int] = mapped_column(Integer, default=30)
+    advance_days: Mapped[int] = mapped_column(Integer, default=7)
     prep_target_minutes: Mapped[int] = mapped_column(Integer, default=5)
     staff_phone: Mapped[str] = mapped_column(String(20), default="")
 

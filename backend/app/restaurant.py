@@ -23,7 +23,7 @@ class RestaurantIn(BaseModel):
     slot_minutes: int = Field(ge=10, le=120)
     dining_minutes: int = Field(ge=15, le=300)
     max_guests: int = Field(ge=1, le=100)
-    advance_days: int = Field(ge=0, le=365)
+    advance_days: int = Field(ge=0, le=7)
     prep_target_minutes: int = Field(ge=1, le=120)
     staff_phone: str = Field("", max_length=20)
 
