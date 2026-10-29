@@ -64,7 +64,7 @@ Callers usually have not messaged the restaurant on WhatsApp, so their booking Q
 2. That is enough. The app checks unpaid links every minute.
 3. Optional, for instant updates: add a webhook to `PUBLIC_URL/webhooks/razorpay` for the `payment_link.paid` event, and put its secret in `RAZORPAY_WEBHOOK_SECRET`.
 
-After changing `.env`, restart the computer or close the app from Task Manager / Activity Monitor (it runs as Python) and open the icon again.
+After changing `.env`, log in as the owner and press Reload keys on the Today page. No restart needed.
 
 ## 5. Fill in the restaurant
 

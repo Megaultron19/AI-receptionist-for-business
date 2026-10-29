@@ -1,6 +1,6 @@
 "use client";
 import { useState } from "react";
-import { api, today } from "@/lib/api";
+import { api, time, today } from "@/lib/api";
 import { useApi } from "@/lib/useApi";
 import { useMe } from "@/components/Shell";
 import { ErrorBox, Field, Header, Modal, useAction } from "@/components/ui";
@@ -11,11 +11,25 @@ type Block = { id: number; table_id: number | null; starts_at: string; ends_at: 
 export default function TablesPage() {
   const me = useMe();
   const tables = useApi<Table[]>("/api/tables");
-  const blocks = useApi<Block[]>("/api/blocks");
+  const blocks = useApi<Block[]>("/api/blocks", 30000);
   const [editing, setEditing] = useState<Partial<Table> | null>(null);
   const [blocking, setBlocking] = useState(false);
   const act = useAction();
   const names = Object.fromEntries((tables.data ?? []).map((t) => [t.id, t.name]));
+
+  const d = new Date();
+  const nowIso = `${today()}T${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+  const walkIn = (t: Table) => blocks.data?.find((b) => b.table_id === t.id && b.reason === "Walk-in" && b.starts_at.slice(0, 16) <= nowIso && b.ends_at.slice(0, 16) > nowIso);
+
+  async function seat(t: Table) {
+    await act.run(() => api(`/api/tables/${t.id}/walk-in`, "POST"));
+    blocks.reload();
+  }
+
+  async function free(b: Block) {
+    await act.run(() => api(`/api/blocks/${b.id}`, "DELETE"));
+    blocks.reload();
+  }
 
   async function toggle(t: Table) {
     await act.run(() => api(`/api/tables/${t.id}/available?available=${!t.available}`, "POST"));
@@ -34,7 +48,11 @@ export default function TablesPage() {
             <div key={t.id} className={`card ${t.available ? "" : "opacity-60"}`}>
               <div className="text-lg font-semibold">{t.name}</div>
               <div className="text-sm text-stone-500">{t.seats} seats</div>
-              <div className="mt-3 flex gap-1">
+              {walkIn(t) && <div className="mt-1 text-sm font-medium text-orange-700">Walk-in until {time(walkIn(t)!.ends_at)}</div>}
+              <div className="mt-3 flex flex-wrap gap-1">
+                {t.available && (walkIn(t)
+                  ? <button className="btn" onClick={() => free(walkIn(t)!)}>Table is free again</button>
+                  : <button className="btn" onClick={() => seat(t)}>Seat walk-in</button>)}
                 <button className="btn-light" onClick={() => toggle(t)}>{t.available ? "Mark unavailable" : "Mark available"}</button>
                 {me.role === "owner" && <button className="btn-light" onClick={() => setEditing(t)}>Edit</button>}
               </div>

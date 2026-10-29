@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
@@ -7,8 +7,9 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from .auth import current_user, owner_only
-from .db import get_db
+from .db import get_db, now
 from .models import Block, DiningTable, Reservation
+from .reservations import ACTIVE, restaurant
 
 router = APIRouter(prefix="/api")
 
@@ -98,6 +99,28 @@ def add_block(body: BlockIn, db: Session = Depends(get_db), _=Depends(current_us
     if body.table_id is not None and not db.get(DiningTable, body.table_id):
         raise HTTPException(404, "Table not found")
     block = Block(**body.model_dump())
+    db.add(block)
+    db.commit()
+    return block_out(block)
+
+
+@router.post("/tables/{table_id}/walk-in")
+def walk_in(table_id: int, db: Session = Depends(get_db), _=Depends(current_user)):
+    table = db.get(DiningTable, table_id)
+    if not table:
+        raise HTTPException(404, "Table not found")
+    start = now()
+    end = start + timedelta(minutes=restaurant(db).dining_minutes)
+    if not table.available:
+        raise HTTPException(409, f"{table.name} is marked unavailable")
+    if db.scalar(select(Block.id).where(Block.starts_at < end, Block.ends_at > start,
+                                        (Block.table_id == table_id) | Block.table_id.is_(None))):
+        raise HTTPException(409, f"{table.name} is already blocked now")
+    booking = db.scalar(select(Reservation).where(Reservation.table_id == table_id, Reservation.status.in_(ACTIVE),
+                                                  Reservation.starts_at < end, Reservation.ends_at > start).order_by(Reservation.starts_at))
+    if booking:
+        raise HTTPException(409, f"{table.name} has a booking for {booking.name} at {booking.starts_at:%I:%M %p}. Pick another table.")
+    block = Block(table_id=table_id, starts_at=start, ends_at=end, reason="Walk-in")
     db.add(block)
     db.commit()
     return block_out(block)
